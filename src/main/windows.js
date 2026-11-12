@@ -239,18 +239,18 @@ class WindowManager {
         win.showInactive();
       }
     }
+    const all = screen.getAllDisplays();
     for (const [id, win] of this.windows) {
       if (win.isDestroyed()) continue;
       const inst = wanted.get(id);
       if (!inst) continue;
-      const display = this.displayFor(inst);
       const b = win.getBounds();
-      const center = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-      const area = display.workArea;
-      const onTarget =
-        center.x >= area.x && center.x <= area.x + area.width && center.y >= area.y && center.y <= area.y + area.height;
-      // 指定了屏幕却没落在该屏幕上（换屏、拔掉显示器）时重新摆放
-      if (!onTarget) win.setBounds(this.defaultBounds(display), false);
+      // 只有「指定的屏幕不存在了」或「整个窗口跑到屏幕外」时才重新摆放，
+      // 避免用户手动拖到别的屏幕后被配置同步拽回去
+      const targetMissing = inst.displayId !== 'auto' && !all.some((d) => String(d.id) === String(inst.displayId));
+      if (targetMissing || !this.isVisibleOnAnyDisplay(b)) {
+        win.setBounds(this.defaultBounds(this.displayFor(inst)), false);
+      }
     }
   }
 
