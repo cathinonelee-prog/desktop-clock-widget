@@ -9,6 +9,13 @@ $exe = Join-Path $root 'build\DesktopClock-win32-x64\DesktopClock.exe'
 $backdropPath = Join-Path $docs 'backdrop.png'
 
 New-Item -ItemType Directory -Force -Path $dataDir, $shots | Out-Null
+
+if (-not (Test-Path $backdropPath)) {
+  throw "缺少 $backdropPath，请先运行：python scripts\make_backdrop.py"
+}
+if (-not (Test-Path $exe)) {
+  throw "缺少打包产物，请先运行：npm run dist"
+}
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 Add-Type -Namespace Win -Name Kbd -MemberDefinition @'
 [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
