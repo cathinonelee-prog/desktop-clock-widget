@@ -1,0 +1,49 @@
+name: Release
+
+# 推送 v1.0.3 这样的 tag 时触发：
+#   git tag v1.0.3
+#   git push origin v1.0.3
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 打包并发布便携版
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 运行测试
+        run: npm test
+
+      - name: 打包
+        run: npm run dist
+
+      - name: 压缩便携版
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\DesktopClock-win32-x64\* -DestinationPath DesktopClock-win32-x64.zip -CompressionLevel Optimal
+
+      - name: 创建 Release 并上传
+        uses: softprops/action-gh-release@v2
+        with:
+          files: DesktopClock-win32-x64.zip
+          generate_release_notes: true
+          body: |
+            便携版：下载 `DesktopClock-win32-x64.zip`，解压后双击 `DesktopClock.exe`。
+
+            程序未做代码签名，首次运行可能被 SmartScreen 拦截，点「更多信息 → 仍要运行」即可。
+
+            配置与窗口位置保存在 `%APPDATA%\desktop-clock-widget\`。

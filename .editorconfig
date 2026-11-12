@@ -1,0 +1,21 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{js,mjs,cjs,json,css,html,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.ps1]
+end_of_line = crlf
+
+[*.vbs]
+# 启动脚本保存为 UTF-16，Windows Script Host 才能正确读取中文
+charset = utf-16le

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'"
+    />
+    <title>悬浮时钟 · 设置</title>
+    <link rel="stylesheet" href="widget.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body class="settings-page">
+    <div class="app">
+      <header class="titlebar">
+        <div class="brand"><span class="logo"></span><span>悬浮时钟</span><span class="ver" id="ver">v1.0.0</span></div>
+        <div class="title-actions">
+          <button class="icon-btn" id="btn-min" title="最小化">–</button>
+          <button class="icon-btn" id="btn-close" title="关闭">×</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <nav class="nav" id="nav">
+            <button class="nav-item is-active" data-tab="clock">时钟与授时</button>
+            <button class="nav-item" data-tab="display">显示内容</button>
+            <button class="nav-item" data-tab="look">外观</button>
+            <button class="nav-item" data-tab="window">窗口层级</button>
+            <button class="nav-item" data-tab="screens">多屏与实例</button>
+            <button class="nav-item" data-tab="about">关于</button>
+          </nav>
+          <div class="sidebar-foot">
+            <button class="ghost-btn" id="btn-reset-layout">重置全部时钟位置</button>
+          </div>
+        </aside>
+
+        <main class="content">
+          <div class="preview-bar">
+            <div class="preview-meta">
+              <div class="preview-title">实时预览</div>
+              <div class="preview-hint">跟随左侧设置即时变化</div>
+            </div>
+            <div class="preview-stage"><div class="widget-root" id="preview-host"></div></div>
+          </div>
+
+          <div class="panes">
+            <!-- ========== 时钟与授时 ========== -->
+            <section class="pane is-active" data-tab="clock">
+              <h2>时间来源</h2>
+              <p class="muted">网络授时直接向时间服务器取时，与系统时间准不准无关；修改过系统时间也不影响显示。</p>
+              <div class="seg" role="radiogroup" aria-label="时间来源">
+                <label class="seg-item"><input type="radio" name="src" value="ntp" data-path="clock.source" /><span>网络授时（推荐）</span></label>
+                <label class="seg-item"><input type="radio" name="src" value="system" data-path="clock.source" /><span>本机系统时间</span></label>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="servers">NTP 服务器（每行一个）</label>
+                  <textarea id="servers" rows="4" spellcheck="false" data-path="clock.servers" data-type="lines"></textarea>
+                  <span class="hint">默认国内可达服务器，UDP 123 不通时会自动换下一个。</span>
+                </div>
+                <div class="field">
+                  <label for="httpUrls">HTTPS 兜底地址（每行一个）</label>
+                  <textarea id="httpUrls" rows="4" spellcheck="false" data-path="clock.httpUrls" data-type="lines"></textarea>
+                  <label class="check"><input type="checkbox" data-path="clock.httpFallback" /><span>UDP 授时失败时改用 HTTPS 响应时间（精度约 ±0.5 秒）</span></label>
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="interval">同步间隔（分钟）</label>
+                  <input id="interval" type="number" min="1" max="1440" data-path="clock.intervalMin" />
+                </div>
+                <div class="field">
+                  <label for="timeout">单次超时（毫秒）</label>
+                  <input id="timeout" type="number" min="500" max="20000" step="100" data-path="clock.timeoutMs" />
+                </div>
+                <div class="field">
+                  <label>状态</label>
+                  <div class="sync-chip" id="sync-chip">
+                    <span class="sync-dot" id="sync-dot"></span>
+                    <span id="sync-text">尚未同步</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sync-card">
+                <div class="sync-head">
+                  <div>
+                    <div class="sync-title">与网络时间对齐</div>
+                    <div class="sync-sub" id="sync-detail">等待首次同步…</div>
+                  </div>
+                  <button class="primary-btn" id="btn-sync">立即同步</button>
+                </div>
+              </div>
+
+              <h2>时区</h2>
+              <p class="muted">默认跟随系统时区；也可以固定成某个城市的时区（例如出差时把时钟锁在北京时间）。</p>
+              <div class="seg" role="radiogroup" aria-label="时区模式">
+                <label class="seg-item"><input type="radio" name="tzmode" value="auto" /><span>跟随系统</span></label>
+                <label class="seg-item"><input type="radio" name="tzmode" value="custom" /><span>指定时区</span></label>
+              </div>
+              <div class="field tz-field" id="tz-field">
+                <input id="tz-input" type="text" list="tz-list" spellcheck="false" placeholder="例如 Asia/Shanghai" />
+                <datalist id="tz-list"></datalist>
+                <div class="quick-tz" id="quick-tz"></div>
+                <span class="hint">支持所有 IANA 时区名，可直接输入搜索。</span>
+              </div>
+
+              <h2>时间格式</h2>
+              <div class="grid-3">
+                <div class="field">
+                  <label>小时制</label>
+                  <label class="check"><input type="checkbox" data-path="time.hour12" /><span>12 小时制（AM/PM）</span></label>
+                </div>
+                <div class="field">
+                  <label>秒</label>
+                  <label class="check"><input type="checkbox" data-path="time.showSeconds" /><span>显示秒</span></label>
+                </div>
+                <div class="field">
+                  <label>年份</label>
+                  <label class="check"><input type="checkbox" data-path="time.showYear" /><span>日期中显示年份</span></label>
+                </div>
+              </div>
+            </section>
+
+            <!-- ========== 显示内容 ========== -->
+            <section class="pane" data-tab="display">
+              <h2>显示模式</h2>
+              <p class="muted">版式决定信息怎么排，元素开关决定显示哪些内容。每个时钟窗口还可以单独覆盖模式。</p>
+              <div class="preset-grid" id="preset-grid"></div>
+
+              <h2>显示元素</h2>
+              <div class="parts-grid" id="parts-grid"></div>
+            </section>
+
+            <!-- ========== 外观 ========== -->
+            <section class="pane" data-tab="look">
+              <h2>主题与配色</h2>
+              <div class="field">
+                <label>主题</label>
+                <div class="seg small" role="radiogroup">
+                  <label class="seg-item"><input type="radio" name="theme" value="auto" data-path="look.theme" /><span>跟随系统</span></label>
+                  <label class="seg-item"><input type="radio" name="theme" value="dark" data-path="look.theme" /><span>深色</span></label>
+                  <label class="seg-item"><input type="radio" name="theme" value="light" data-path="look.theme" /><span>浅色</span></label>
+                </div>
+              </div>
+              <div class="field">
+                <label>强调色</label>
+                <div class="swatches" id="swatches"></div>
+              </div>
+
+              <h2>面板质感</h2>
+              <div class="field">
+                <label for="opacity">面板不透明度 <b id="opacity-out">42%</b></label>
+                <input id="opacity" type="range" min="5" max="100" step="1" data-path="look.panelOpacity" data-scale="100" data-out="opacity-out" />
+                <span class="hint">只是背景的透明度，文字始终清晰。</span>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="font">字体</label>
+                  <select id="font" data-path="look.fontFamily">
+                    <option value="default">系统默认（推荐）</option>
+                    <option value="sans">无衬线</option>
+                    <option value="serif">衬线</option>
+                    <option value="mono">等宽</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="radius">圆角 <b id="radius-out">22px</b></label>
+                  <input id="radius" type="range" min="0" max="48" step="1" data-path="look.radius" data-out="radius-out" data-suffix="px" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="scale">整体缩放 <b id="scale-out">100%</b></label>
+                  <input id="scale" type="range" min="60" max="300" step="5" data-path="look.scale" data-scale="100" data-out="scale-out" />
+                  <span class="hint">也可以直接在时钟上用 Ctrl + 滚轮缩放。</span>
+                </div>
+                <div class="field">
+                  <label for="weight">字重 <b id="weight-out">300</b></label>
+                  <input id="weight" type="range" min="100" max="900" step="100" data-path="look.fontWeight" data-out="weight-out" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>文字阴影</label>
+                <label class="check"><input type="checkbox" data-path="look.textShadow" /><span>在复杂壁纸上更清晰</span></label>
+              </div>
+            </section>
+
+            <!-- ========== 窗口层级 ========== -->
+            <section class="pane" data-tab="window">
+              <h2>窗口层级</h2>
+              <div class="layer-grid" id="layer-grid">
+                <label class="layer-card" data-value="alwaysOnTop">
+                  <input type="radio" name="layer" value="alwaysOnTop" data-path="window.layer" />
+                  <span class="layer-body">
+                    <span class="layer-title">始终置顶</span>
+                    <span class="layer-desc">浮在所有窗口上方，随时可见，适合当主时钟。</span>
+                  </span>
+                </label>
+                <label class="layer-card" data-value="desktop">
+                  <input type="radio" name="layer" value="desktop" data-path="window.layer" />
+                  <span class="layer-body">
+                    <span class="layer-title">固定在桌面层</span>
+                    <span class="layer-desc">不抢焦点、不挡应用窗口，只在本就看得到桌面时出现。</span>
+                  </span>
+                </label>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label>交互</label>
+                  <label class="check"><input type="checkbox" data-path="window.locked" /><span>锁定位置（拖动无效）</span></label>
+                  <label class="check"><input type="checkbox" data-path="window.clickThrough" /><span>鼠标点击穿透（可用托盘菜单恢复）</span></label>
+                  <label class="check"><input type="checkbox" data-path="window.snapToEdges" /><span>拖动时吸附到屏幕边缘</span></label>
+                </div>
+                <div class="field">
+                  <label>启动</label>
+                  <label class="check"><input type="checkbox" data-path="behavior.autostart" /><span>开机自动启动</span></label>
+                  <label class="check"><input type="checkbox" data-path="behavior.startHidden" /><span>启动时先不显示（从托盘打开）</span></label>
+                </div>
+              </div>
+
+              <h2>全局快捷键</h2>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="hk-toggle">显示 / 隐藏所有时钟</label>
+                  <input id="hk-toggle" type="text" spellcheck="false" data-path="hotkeys.toggle" />
+                </div>
+                <div class="field">
+                  <label for="hk-sync">立即同步网络时间</label>
+                  <input id="hk-sync" type="text" spellcheck="false" data-path="hotkeys.sync" />
+                </div>
+              </div>
+              <p class="muted">格式示例：Control+Alt+T、CommandOrControl+Shift+K。留空表示不使用。</p>
+            </section>
+
+            <!-- ========== 多屏与实例 ========== -->
+            <section class="pane" data-tab="screens">
+              <h2>时钟窗口</h2>
+              <p class="muted">每个窗口可以选择显示在哪块屏幕上，也可以各用不同的显示模式，方便多屏分割使用。</p>
+              <div class="table" id="instance-table"></div>
+              <div class="row-actions">
+                <button class="ghost-btn" id="btn-add-instance">+ 添加时钟窗口</button>
+                <button class="ghost-btn" id="btn-one-per-display">每块屏幕各放一个</button>
+              </div>
+
+              <h2>显示器</h2>
+              <div class="display-list" id="display-list"></div>
+            </section>
+
+            <!-- ========== 关于 ========== -->
+            <section class="pane" data-tab="about">
+              <h2>悬浮时钟</h2>
+              <div class="about-grid">
+                <div><span class="k">版本</span><span class="v" id="about-version">—</span></div>
+                <div><span class="k">运行环境</span><span class="v" id="about-runtime">—</span></div>
+                <div><span class="k">数据目录</span><span class="v" id="about-data">—</span></div>
+              </div>
+              <h2>操作提示</h2>
+              <ul class="tips">
+                <li>在时钟上<strong>按住左键拖动</strong>可以移动位置，位置按窗口记忆，重启后保持。</li>
+                <li>在时钟上<strong>右键</strong>可以快速切换显示模式、层级、锁定与穿透。</li>
+                <li><strong>双击</strong>时钟打开设置；<strong>Ctrl + 滚轮</strong>快速缩放。</li>
+                <li>托盘图标：左键 / 双击打开设置，右键是完整菜单。</li>
+              </ul>
+              <h2>数据与许可</h2>
+              <p class="muted">
+                农历、节气、传统节日由内置的 lunar-javascript（MIT）计算；法定节假日与调休数据来自 chinese-days（MIT）的年度整理，
+                已内置 2004–2027 年。网络授时使用 SNTP 协议（UDP 123），失败时回退到 HTTPS 响应时间。
+              </p>
+              <div class="row-actions">
+                <button class="ghost-btn" id="btn-open-data">打开数据目录</button>
+                <button class="danger-btn" id="btn-reset-config">恢复默认设置</button>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="../vendor/lunar.js"></script>
+    <script type="module" src="settings.js"></script>
+  </body>
+</html>

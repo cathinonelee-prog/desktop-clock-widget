@@ -1,0 +1,33 @@
+{
+  "name": "desktop-clock-widget",
+  "productName": "悬浮时钟",
+  "version": "1.0.3",
+  "private": true,
+  "description": "半透明桌面悬浮时钟：SNTP 网络授时、时区选择、农历节气节日、多屏多窗口",
+  "main": "src/main/main.js",
+  "license": "MIT",
+  "author": "悬浮时钟 contributors",
+  "keywords": [
+    "electron",
+    "clock",
+    "widget",
+    "desktop",
+    "windows",
+    "ntp",
+    "lunar-calendar",
+    "solar-terms"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "icons": "python scripts/make_icons.py",
+    "dist": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.3.1"
+  }
+}
