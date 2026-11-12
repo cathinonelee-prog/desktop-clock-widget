@@ -6,6 +6,11 @@
 
 适合把任务栏右下角的时钟隐藏之后，用一块更顺眼的浮动时钟代替它。
 
+[![CI](https://github.com/cathinonelee-prog/desktop-clock-widget/actions/workflows/ci.yml/badge.svg)](https://github.com/cathinonelee-prog/desktop-clock-widget/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cathinonelee-prog/desktop-clock-widget)](https://github.com/cathinonelee-prog/desktop-clock-widget/releases)
+[![License](https://img.shields.io/github/license/cathinonelee-prog/desktop-clock-widget)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D4)
+
 ![悬浮时钟](docs/preview-widget.png)
 
 ## 目录
@@ -97,7 +102,7 @@
 
 ### 便携版（推荐）
 
-1. 在仓库的 **Releases** 页面下载最新的 `DesktopClock-win32-x64.zip`；
+1. 在 [Releases](https://github.com/cathinonelee-prog/desktop-clock-widget/releases/latest) 页面下载最新的 `DesktopClock-win32-x64.zip`；
 2. 解压到任意目录（例如 `D:\Tools\悬浮时钟\`）；
 3. 双击 `DesktopClock.exe` 运行。
 
@@ -109,7 +114,7 @@
 ### 从源码运行
 
 ```powershell
-git clone <你的仓库地址>
+git clone https://github.com/cathinonelee-prog/desktop-clock-widget.git
 cd desktop-clock-widget
 npm install     # 安装 Electron，约 150 MB
 npm start

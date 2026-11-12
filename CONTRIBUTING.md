@@ -9,7 +9,7 @@
 - Git
 
 ```powershell
-git clone <你的仓库地址>
+git clone https://github.com/cathinonelee-prog/desktop-clock-widget.git
 cd desktop-clock-widget
 npm install     # 会下载 Electron（约 150 MB）
 npm start
@@ -78,3 +78,4 @@ npm run dist    # 需要时再打包
 ## 许可
 
 提交代码即表示同意以 MIT 许可证发布。
+

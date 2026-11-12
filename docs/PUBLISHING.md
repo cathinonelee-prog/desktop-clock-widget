@@ -1,5 +1,8 @@
 # 发布到 GitHub（新手版）
 
+> **本仓库已发布：<https://github.com/cathinonelee-prog/desktop-clock-widget>**
+> 第 1–4 步是一次性的，已经做完了。以后发新版只需要看最后一节「之后每次发版的流程」。
+
 这份文档写给第一次发布 GitHub 仓库的人，按顺序做即可。全程只需要复制粘贴命令。
 
 > 下面命令里的 `<你的用户名>` 要换成你自己的 GitHub 用户名，例如 `zhangsan`。
