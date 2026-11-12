@@ -34,12 +34,23 @@ const paths = await packager({
   icon: path.join(root, 'resources', 'icon.ico'),
   electronZipDir,
   ignore: [
-    /^\/\.(test-data|shots|electron-cache|npm-cache)(\/|$)/,
+    /^\/\.(test-data|shots|smoke|electron-cache|npm-cache)(\/|$)/,
     /^\/(tests|scripts|docs|build)(\/|$)/,
-    /^\/README\.md$/,
+    /^\/(README|CHANGELOG|CONTRIBUTING)\.md$/,
     /^\/package-lock\.json$/,
+    /\.zip$/i,
+    /\.vbs$/i,
   ],
 });
+
+// 防止再次把打包产物自己塞进 asar
+const asar = paths[0] && path.join(paths[0], 'resources', 'app.asar');
+if (asar) {
+  const { statSync } = await import('node:fs');
+  const mb = statSync(asar).size / 1024 / 1024;
+  if (mb > 5) console.warn(`⚠ app.asar 有 ${mb.toFixed(1)} MB，检查是否误打包了 build/ 或 zip`);
+  else console.log(`app.asar ${mb.toFixed(2)} MB`);
+}
 
 console.log('打包完成：');
 for (const p of paths) console.log('  ' + p);
