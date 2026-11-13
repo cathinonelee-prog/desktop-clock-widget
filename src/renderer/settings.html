@@ -246,15 +246,24 @@
               <h2>全局快捷键</h2>
               <div class="grid-2">
                 <div class="field">
-                  <label for="hk-toggle">显示 / 隐藏所有时钟</label>
-                  <input id="hk-toggle" type="text" spellcheck="false" data-path="hotkeys.toggle" />
+                  <label>显示 / 隐藏所有时钟</label>
+                  <div class="hotkey-field" data-hotkey="toggle">
+                    <button type="button" class="hotkey-display" id="hk-toggle" aria-label="录制快捷键"></button>
+                    <button type="button" class="hotkey-clear" title="清除快捷键（不启用）">×</button>
+                  </div>
                 </div>
                 <div class="field">
-                  <label for="hk-sync">立即同步网络时间</label>
-                  <input id="hk-sync" type="text" spellcheck="false" data-path="hotkeys.sync" />
+                  <label>立即同步网络时间</label>
+                  <div class="hotkey-field" data-hotkey="sync">
+                    <button type="button" class="hotkey-display" id="hk-sync" aria-label="录制快捷键"></button>
+                    <button type="button" class="hotkey-clear" title="清除快捷键（不启用）">×</button>
+                  </div>
                 </div>
               </div>
-              <p class="muted">格式示例：Control+Alt+T、CommandOrControl+Shift+K。留空表示不使用。</p>
+              <p class="muted">
+                点击方框后直接按下组合键即可录制，按 Esc 取消、Backspace 清除；点右侧 × 也能清除。
+                组合需要包含 Ctrl / Alt / Shift 之一（或使用 F1–F24），留空表示不启用。
+              </p>
             </section>
 
             <!-- ========== 多屏与实例 ========== -->

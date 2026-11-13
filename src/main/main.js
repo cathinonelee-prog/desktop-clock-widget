@@ -67,6 +67,7 @@ let config = null;
 let quitting = false;
 let updater = null;
 let updateTimer = null;
+let failedHotkeys = [];
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -332,12 +333,24 @@ function openSettings(tab) {
 function registerShortcuts() {
   globalShortcut.unregisterAll();
   const cfg = config.get();
-  try {
-    if (cfg.hotkeys.toggle) globalShortcut.register(cfg.hotkeys.toggle, () => windowManager?.toggleAll());
-    if (cfg.hotkeys.sync) globalShortcut.register(cfg.hotkeys.sync, () => clock?.sync());
-  } catch (err) {
-    console.error('[hotkeys] failed', err);
+  const failed = [];
+  const register = (accelerator, handler) => {
+    if (!accelerator) return;
+    try {
+      if (!globalShortcut.register(accelerator, handler)) failed.push(accelerator);
+    } catch {
+      failed.push(accelerator);
+    }
+  };
+
+  register(cfg.hotkeys.toggle, () => windowManager?.toggleAll());
+  register(cfg.hotkeys.sync, () => clock?.sync());
+
+  if (failed.length) {
+    log(`hotkeys register failed: ${failed.join(', ')}`);
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('hotkeys:failed', failed);
   }
+  failedHotkeys = failed;
 }
 
 function quitApp() {
@@ -362,6 +375,7 @@ function registerIpc() {
       timeZones: Intl.supportedValuesOf('timeZone'),
       systemTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       appPath: ROOT,
+      failedHotkeys: failedHotkeys.slice(),
     },
   }));
 

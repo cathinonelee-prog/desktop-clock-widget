@@ -13,6 +13,7 @@ let displays = boot.displays;
 let clockState = boot.clock;
 const info = boot.info;
 const systemTimeZone = info.systemTimeZone;
+let failedHotkeys = Array.isArray(info.failedHotkeys) ? info.failedHotkeys.slice() : [];
 
 const calendar = createCalendar(window.Solar);
 const holidays = new HolidayDb();
@@ -809,6 +810,146 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') api.close();
 });
 
+/* ---------------- 全局快捷键录制 ---------------- */
+
+const hotkeyRenders = [];
+
+function hotkeyValue(name) {
+  return (config.hotkeys && config.hotkeys[name]) || '';
+}
+
+/** 把 KeyboardEvent 转成 Electron 加速器字符串，例如 Control+Alt+T */
+function acceleratorFromEvent(event) {
+  const mods = [];
+  if (event.ctrlKey) mods.push('Control');
+  if (event.altKey) mods.push('Alt');
+  if (event.shiftKey) mods.push('Shift');
+  if (event.metaKey) mods.push('Super');
+
+  let key = null;
+  if (/^Key[A-Z]$/.test(event.code)) key = event.code.slice(3);
+  else if (/^Digit[0-9]$/.test(event.code)) key = event.code.slice(5);
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(event.key)) key = event.key.toUpperCase();
+  else {
+    const map = {
+      ArrowUp: 'Up',
+      ArrowDown: 'Down',
+      ArrowLeft: 'Left',
+      ArrowRight: 'Right',
+      ' ': 'Space',
+      Enter: 'Return',
+      Tab: 'Tab',
+      Backspace: 'Backspace',
+      Delete: 'Delete',
+      Insert: 'Insert',
+      Home: 'Home',
+      End: 'End',
+      PageUp: 'PageUp',
+      PageDown: 'PageDown',
+    };
+    if (map[event.key]) key = map[event.key];
+    else if (event.key.length === 1 && /^[\x21-\x7e]$/.test(event.key)) key = event.key;
+  }
+
+  if (!key) return null;
+  const isFunction = /^F\d{1,2}$/.test(key);
+  const isSpecial = ['Up', 'Down', 'Left', 'Right', 'Space', 'Tab', 'Return', 'Insert', 'Delete', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace'].includes(key);
+  // 没有修饰键时，只允许功能键或特殊键，避免单个字母变成全局热键
+  if (!mods.length && !isFunction && !isSpecial) return null;
+  return [...new Set([...mods, key])].join('+');
+}
+
+function setupHotkeyField(name) {
+  const field = document.querySelector(`.hotkey-field[data-hotkey="${name}"]`);
+  if (!field) return;
+  const display = field.querySelector('.hotkey-display');
+  const clear = field.querySelector('.hotkey-clear');
+  let recording = false;
+
+  const render = () => {
+    const value = hotkeyValue(name);
+    const conflict = Boolean(value) && failedHotkeys.includes(value);
+    display.textContent = recording ? '按下组合键…（Esc 取消）' : value || '未设置（点击录制）';
+    display.classList.toggle('is-recording', recording);
+    display.classList.toggle('is-empty', !value && !recording);
+    display.classList.toggle('is-conflict', !recording && conflict);
+    display.title = conflict ? '这个快捷键被其他程序占用，建议重新录制' : '点击后按下组合键录制';
+    clear.disabled = !value && !recording;
+  };
+
+  const stop = () => {
+    recording = false;
+    render();
+  };
+
+  const commit = (value) => {
+    patchConfig({ hotkeys: { [name]: value } }, { immediate: true });
+    config = { ...config, hotkeys: { ...config.hotkeys, [name]: value } };
+    failedHotkeys = failedHotkeys.filter((item) => item !== value);
+    stop();
+  };
+
+  display.addEventListener('click', () => {
+    recording = true;
+    render();
+    display.focus();
+  });
+
+  display.addEventListener('blur', () => {
+    if (recording) stop();
+  });
+
+  display.addEventListener('keydown', (event) => {
+    if (!recording) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        recording = true;
+        render();
+      }
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === 'Escape') {
+      stop();
+      return;
+    }
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      commit('');
+      return;
+    }
+
+    const accelerator = acceleratorFromEvent(event);
+    if (!accelerator) return; // 只按了修饰键，继续等待
+
+    const otherName = name === 'toggle' ? 'sync' : 'toggle';
+    if (hotkeyValue(otherName).toLowerCase() === accelerator.toLowerCase()) {
+      toast('这个组合已经被另一个动作占用', true);
+      return;
+    }
+    commit(accelerator);
+  });
+
+  clear.addEventListener('click', () => {
+    if (recording) stop();
+    commit('');
+  });
+
+  hotkeyRenders.push(render);
+  render();
+}
+
+setupHotkeyField('toggle');
+setupHotkeyField('sync');
+
+api.onHotkeyFailed?.((list) => {
+  if (!Array.isArray(list) || !list.length) return;
+  failedHotkeys = list.slice();
+  for (const renderHotkey of hotkeyRenders) renderHotkey();
+  toast(`快捷键 ${list.join('、')} 注册失败，可能被其他程序占用，请重新录制`, true);
+});
+
 /* ---------------- 关于 ---------------- */
 
 document.getElementById('ver').textContent = `v${info.version}`;
@@ -946,6 +1087,7 @@ function syncAll() {
     input.checked = Boolean(config.content.parts[key]);
   }
   syncSwatches();
+  for (const renderHotkey of hotkeyRenders) renderHotkey();
   syncTimeZoneUI();
   syncText();
   renderInstances();
@@ -977,3 +1119,4 @@ setTimeout(renderPreview, 60);
   });
   renderPreview();
 })();
+

@@ -932,6 +932,79 @@ input[type='checkbox'] {
   color: var(--accent);
 }
 
+/* —— 全局快捷键录制 —— */
+.hotkey-field {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.hotkey-display {
+  flex: 1;
+  min-height: 36px;
+  padding: 8px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotkey-display:hover {
+  border-color: var(--line-strong);
+}
+
+.hotkey-display:focus,
+.hotkey-display.is-recording {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.12);
+  color: var(--accent);
+}
+
+.hotkey-display.is-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hotkey-display.is-conflict {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.45);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
+}
+
+.hotkey-clear {
+  width: 36px;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  border-radius: 9px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hotkey-clear:hover:not(:disabled) {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.hotkey-clear:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* —— 关于 —— */
 .inline-actions {
   display: flex;
