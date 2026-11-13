@@ -17,6 +17,16 @@ contextBridge.exposeInMainWorld('clockSettings', {
   refreshDisplays: () => ipcRenderer.invoke('layout:get'),
   openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  relaunch: () => ipcRenderer.invoke('app:relaunch'),
+  updateState: () => ipcRenderer.invoke('update:state'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  applyUpdate: () => ipcRenderer.invoke('update:apply'),
+  onUpdate: (cb) => {
+    const handler = (_e, state) => cb(state);
+    ipcRenderer.on('update:state', handler);
+    return () => ipcRenderer.removeListener('update:state', handler);
+  },
   close: () => ipcRenderer.send('settings:close'),
   minimize: () => ipcRenderer.send('settings:minimize'),
   onConfig: (cb) => {

@@ -824,6 +824,106 @@ document.getElementById('btn-reset-config').addEventListener('click', async () =
   toast('已恢复默认设置');
 });
 
+document.getElementById('btn-relaunch').addEventListener('click', () => api.relaunch());
+const lowMemoryCheckbox = document.querySelector('[data-path="behavior.lowMemory"]');
+lowMemoryCheckbox?.addEventListener('change', () => {
+  toast(lowMemoryCheckbox.checked ? '已开启低内存模式，重启后生效' : '已关闭低内存模式，重启后生效');
+});
+
+/* ---------------- 版本更新 ---------------- */
+
+const updateTitle = document.getElementById('update-title');
+const updateSub = document.getElementById('update-sub');
+const btnCheckUpdate = document.getElementById('btn-check-update');
+const btnInstallUpdate = document.getElementById('btn-install-update');
+const updateProgress = document.getElementById('update-progress');
+const updateBar = document.getElementById('update-bar');
+const updateNotesWrap = document.getElementById('update-notes-wrap');
+const updateNotes = document.getElementById('update-notes');
+let latestState = null;
+
+function renderUpdate(state) {
+  if (!state) return;
+  latestState = state;
+
+  updateTitle.textContent = `当前版本 v${state.currentVersion}`;
+  updateProgress.hidden = state.status !== 'downloading';
+  updateBar.style.width = `${state.progress || 0}%`;
+  btnCheckUpdate.disabled = state.status === 'checking' || state.status === 'downloading' || state.status === 'applying';
+  btnCheckUpdate.textContent = state.status === 'checking' ? '检查中…' : '检查更新';
+
+  const notes = (state.notes || '').trim();
+  updateNotesWrap.hidden = !notes;
+  updateNotes.textContent = notes;
+
+  btnInstallUpdate.hidden = true;
+  btnInstallUpdate.disabled = false;
+
+  switch (state.status) {
+    case 'idle':
+      updateSub.textContent = '尚未检查更新';
+      break;
+    case 'checking':
+      updateSub.textContent = '正在检查新版本…';
+      break;
+    case 'latest':
+      updateSub.textContent = `已是最新版本（v${state.latestVersion}）`;
+      break;
+    case 'available':
+      updateSub.textContent = `发现新版本 v${state.latestVersion}，大小约 ${(state.assetSize / 1048576).toFixed(0)} MB`;
+      btnInstallUpdate.hidden = false;
+      btnInstallUpdate.textContent = '下载并安装';
+      break;
+    case 'downloading':
+      updateSub.textContent = `正在下载新版本 v${state.latestVersion}… ${state.progress || 0}%`;
+      break;
+    case 'ready':
+      updateSub.textContent = `v${state.latestVersion} 已下载，重启后完成安装`;
+      btnInstallUpdate.hidden = false;
+      btnInstallUpdate.textContent = '重启并安装';
+      break;
+    case 'applying':
+      updateSub.textContent = '正在替换程序文件，稍后自动重启…';
+      break;
+    case 'error':
+      updateSub.textContent = `检查失败：${state.error || '未知错误'}`;
+      btnInstallUpdate.hidden = false;
+      btnInstallUpdate.textContent = '重试';
+      break;
+    default:
+      updateSub.textContent = state.status;
+  }
+}
+
+btnCheckUpdate.addEventListener('click', async () => {
+  try {
+    renderUpdate(await api.checkUpdate());
+  } catch (err) {
+    toast(`检查更新失败：${err.message}`, true);
+  }
+});
+
+btnInstallUpdate.addEventListener('click', async () => {
+  try {
+    if (latestState?.status === 'ready') {
+      if (!window.confirm('即将关闭程序并安装更新，完成后会自动重新启动。继续吗？')) return;
+      const result = await api.applyUpdate();
+      if (!result?.ok) toast(result?.error || '安装失败', true);
+      return;
+    }
+    btnInstallUpdate.disabled = true;
+    btnInstallUpdate.textContent = '下载中…';
+    renderUpdate(await api.downloadUpdate());
+  } catch (err) {
+    toast(`下载失败：${err.message}`, true);
+  } finally {
+    btnInstallUpdate.disabled = false;
+  }
+});
+
+api.onUpdate(renderUpdate);
+api.updateState().then(renderUpdate).catch(() => {});
+
 /* ---------------- 提示 ---------------- */
 
 let toastTimer = null;

@@ -57,6 +57,11 @@ const DEFAULT_CONFIG = {
   behavior: {
     autostart: false,
     startHidden: false,
+    lowMemory: false, // 关闭 GPU 加速，省掉 GPU 进程的内存（重启生效）
+  },
+  update: {
+    autoCheck: true,
+    feed: '', // 留空 = 使用内置的 GitHub Releases 地址；仅测试时覆盖
   },
   hotkeys: {
     toggle: 'Control+Alt+T',
@@ -209,6 +214,10 @@ function sanitize(input) {
 
   cfg.behavior.autostart = Boolean(cfg.behavior.autostart);
   cfg.behavior.startHidden = Boolean(cfg.behavior.startHidden);
+  cfg.behavior.lowMemory = Boolean(cfg.behavior.lowMemory);
+
+  cfg.update.autoCheck = Boolean(cfg.update.autoCheck);
+  cfg.update.feed = /^https?:\/\//i.test(String(cfg.update.feed || '')) ? String(cfg.update.feed) : '';
 
   cfg.hotkeys.toggle = typeof cfg.hotkeys.toggle === 'string' ? cfg.hotkeys.toggle : d.hotkeys.toggle;
   cfg.hotkeys.sync = typeof cfg.hotkeys.sync === 'string' ? cfg.hotkeys.sync : d.hotkeys.sync;

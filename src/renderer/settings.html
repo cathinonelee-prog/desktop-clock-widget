@@ -235,6 +235,11 @@
                   <label>启动</label>
                   <label class="check"><input type="checkbox" data-path="behavior.autostart" /><span>开机自动启动</span></label>
                   <label class="check"><input type="checkbox" data-path="behavior.startHidden" /><span>启动时先不显示（从托盘打开）</span></label>
+                  <label class="check"><input type="checkbox" data-path="behavior.lowMemory" /><span>低内存模式（关闭 GPU 加速，重启后生效）</span></label>
+                  <div class="inline-actions">
+                    <button class="ghost-btn" id="btn-relaunch" type="button">立即重启程序</button>
+                    <span class="hint">低内存模式会省掉 GPU 进程（约 80 MB），代价是透明窗口改由 CPU 合成。</span>
+                  </div>
                 </div>
               </div>
 
@@ -273,6 +278,34 @@
                 <div><span class="k">版本</span><span class="v" id="about-version">—</span></div>
                 <div><span class="k">运行环境</span><span class="v" id="about-runtime">—</span></div>
                 <div><span class="k">数据目录</span><span class="v" id="about-data">—</span></div>
+              </div>
+
+              <h2>版本更新</h2>
+              <div class="update-card">
+                <div class="update-head">
+                  <div class="update-info">
+                    <div class="update-title" id="update-title">当前版本 —</div>
+                    <div class="update-sub" id="update-sub">尚未检查更新</div>
+                  </div>
+                  <div class="update-actions">
+                    <button class="ghost-btn" id="btn-check-update" type="button">检查更新</button>
+                    <button class="primary-btn" id="btn-install-update" type="button" hidden>下载并安装</button>
+                  </div>
+                </div>
+
+                <div class="update-progress" id="update-progress" hidden>
+                  <div class="update-bar" id="update-bar"></div>
+                </div>
+
+                <details class="update-notes" id="update-notes-wrap" hidden>
+                  <summary>更新说明</summary>
+                  <pre id="update-notes"></pre>
+                </details>
+
+                <label class="check"><input type="checkbox" data-path="update.autoCheck" /><span>启动时及每 6 小时自动检查更新</span></label>
+                <p class="hint">
+                  更新包来自 GitHub Release（未签名）。升级只替换程序目录，设置、时钟实例与窗口位置保存在数据目录里，不会被覆盖。
+                </p>
               </div>
               <h2>操作提示</h2>
               <ul class="tips">

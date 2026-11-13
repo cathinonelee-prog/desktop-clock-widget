@@ -12,12 +12,14 @@ const {
   shell,
   protocol,
 } = require('electron');
+const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 
 const { ConfigStore } = require('./config');
 const { ClockService } = require('./clock');
 const { WindowManager } = require('./windows');
+const { Updater } = require('./updater');
 const { registerAppProtocol, createSettingsWindow } = require('./shell');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -63,6 +65,8 @@ let windowManager = null;
 let clock = null;
 let config = null;
 let quitting = false;
+let updater = null;
+let updateTimer = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -74,6 +78,17 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
+// 低内存模式：在窗口/GPU 初始化之前读取配置，决定是否关闭 GPU 加速
+try {
+  const earlyConfig = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'));
+  if (earlyConfig?.behavior?.lowMemory === true) {
+    app.commandLine.appendSwitch('disable-gpu');
+    log('low-memory mode: GPU disabled');
+  }
+} catch {
+  /* 首次运行没有配置文件，忽略 */
+}
 
 function applyAutostart(enabled) {
   try {
@@ -395,6 +410,31 @@ function registerIpc() {
     config.update({ behavior: { autostart: Boolean(enabled) } });
     return Boolean(enabled);
   });
+  ipcMain.handle('app:relaunch', () => {
+    config.flush();
+    windowManager?.layout.flush?.();
+    app.relaunch();
+    app.exit(0);
+  });
+
+  // —— 版本更新 ——
+  ipcMain.handle('update:state', () => updater?.state() ?? null);
+  ipcMain.handle('update:check', async () => (updater ? updater.check({ force: true }) : null));
+  ipcMain.handle('update:download', async () => (updater ? updater.download() : null));
+  ipcMain.handle('update:apply', async () => {
+    if (!updater) return { ok: false, error: '更新器未初始化' };
+    const result = await updater.apply();
+    if (result.ok) {
+      log('update: applying, quitting for update');
+      setTimeout(() => {
+        quitting = true;
+        config.flush();
+        windowManager?.layout.flush?.();
+        app.exit(0);
+      }, 400);
+    }
+    return result;
+  });
 
   ipcMain.on('widget:size', (event, size) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -519,6 +559,52 @@ app.whenReady().then(() => {
   applyAutostart(config.get().behavior.autostart);
   registerShortcuts();
 
+  // —— 版本更新：启动 8 秒后检查一次，之后每 6 小时一次 ——
+  updater = new Updater({ app, currentVersion: app.getVersion(), config });
+  updater.on('state', (state) => {
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('update:state', state);
+  });
+  const scheduleUpdateCheck = () => {
+    clearInterval(updateTimer);
+    if (!config.get().update.autoCheck) return;
+    updateTimer = setInterval(() => updater?.check(), 6 * 60 * 60 * 1000);
+    if (updateTimer.unref) updateTimer.unref();
+    setTimeout(() => updater?.check(), 8000);
+  };
+  scheduleUpdateCheck();
+
+  // 开发/自测：无人值守跑一遍「检查 → 下载 → 安装」，用本地假 feed 验证升级链路
+  if (process.env.CLOCK_AUTOTEST_UPDATE) {
+    const doneFile = path.join(os.tmpdir(), 'clock-autotest-done');
+    if (fs.existsSync(doneFile)) {
+      log('autotest: 已执行过，跳过');
+    } else {
+      setTimeout(async () => {
+        try {
+          const checked = await updater.check({ force: true });
+          log(`autotest: check ${checked.status} latest=${checked.latestVersion} error=${checked.error || "-"}`);
+          if (checked.status !== 'available') return;
+          const downloaded = await updater.download();
+          log(`autotest: download ${downloaded.status} ${downloaded.progress}%`);
+          if (downloaded.status !== 'ready') return;
+          fs.writeFileSync(doneFile, new Date().toISOString());
+          const result = await updater.apply();
+          log(`autotest: apply ${JSON.stringify(result)}`);
+          if (result.ok) {
+            setTimeout(() => {
+              quitting = true;
+              config.flush();
+              windowManager?.layout.flush?.();
+              app.exit(0);
+            }, 600);
+          }
+        } catch (err) {
+          log(`autotest: failed ${err?.stack || err}`);
+        }
+      }, 3000);
+    }
+  }
+
   clock.on('state', (state) => {
     windowManager.broadcast('clock:state', state);
     if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('clock:state', state);
@@ -530,6 +616,7 @@ app.whenReady().then(() => {
     rebuildTrayMenu();
     registerShortcuts();
     pushConfig();
+    scheduleUpdateCheck();
   });
 
   app.on('activate', () => windowManager.showAll());
@@ -541,6 +628,7 @@ app.whenReady().then(() => {
   });
   app.on('will-quit', () => {
     clock?.stop();
+    clearInterval(updateTimer);
   });
 
   screen.on('display-added', () => {
@@ -566,4 +654,5 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   // 常驻托盘：关闭所有窗口也不退出
 });
+
 
