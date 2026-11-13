@@ -1,7 +1,7 @@
 {
   "name": "desktop-clock-widget",
   "productName": "悬浮时钟",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "半透明桌面悬浮时钟：SNTP 网络授时、时区选择、农历节气节日、多屏多窗口",
   "main": "src/main/main.js",
@@ -31,4 +31,5 @@
     "electron": "^45.3.1"
   }
 }
+
 

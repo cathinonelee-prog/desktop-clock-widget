@@ -102,10 +102,23 @@
                 <label class="seg-item"><input type="radio" name="tzmode" value="custom" /><span>指定时区</span></label>
               </div>
               <div class="field tz-field" id="tz-field">
-                <input id="tz-input" type="text" list="tz-list" spellcheck="false" placeholder="例如 Asia/Shanghai" />
-                <datalist id="tz-list"></datalist>
+                <div class="tz-combo">
+                  <input
+                    id="tz-input"
+                    type="text"
+                    spellcheck="false"
+                    autocomplete="off"
+                    placeholder="输入城市或时区名，例如 Shanghai"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="tz-panel"
+                    aria-autocomplete="list"
+                  />
+                  <button type="button" class="tz-toggle" id="tz-toggle" tabindex="-1" aria-label="展开时区列表">▾</button>
+                  <div class="tz-panel" id="tz-panel" role="listbox" hidden></div>
+                </div>
                 <div class="quick-tz" id="quick-tz"></div>
-                <span class="hint">支持所有 IANA 时区名，可直接输入搜索。</span>
+                <span class="hint">支持所有 IANA 时区名，可直接输入城市名搜索；列表可用滚轮或方向键浏览。</span>
               </div>
 
               <h2>时间格式</h2>

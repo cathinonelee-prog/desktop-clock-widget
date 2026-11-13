@@ -443,7 +443,17 @@ async function runCapture(dir) {
       log(`[capture] win ${win.getTitle()} visible=${win.isVisible()} bounds=${JSON.stringify(win.getBounds())}`);
       win.showInactive();
     }
-    await new Promise((r) => setTimeout(r, 2200));
+    await new Promise((r) => setTimeout(r, 2400));
+    // 开发调试：截图前在页面里执行一段脚本（例如展开某个下拉框）
+    if (process.env.CLOCK_CAPTURE_JS) {
+      for (const win of wins) {
+        await win.webContents
+          .executeJavaScript(process.env.CLOCK_CAPTURE_JS)
+          .then((r) => log(`[capture] js result ${JSON.stringify(r)}`))
+          .catch((err) => log(`[capture] js failed ${err}`));
+      }
+      await new Promise((r) => setTimeout(r, 600));
+    }
     for (const win of wins) {
       const diag = await win.webContents
         .executeJavaScript(
@@ -556,3 +566,4 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   // 常驻托盘：关闭所有窗口也不退出
 });
+

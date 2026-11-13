@@ -287,14 +287,143 @@ setInterval(() => {
 /* ---------------- 时区 ---------------- */
 
 const tzInput = document.getElementById('tz-input');
+const tzToggle = document.getElementById('tz-toggle');
+const tzPanel = document.getElementById('tz-panel');
 const tzField = document.getElementById('tz-field');
-const tzList = document.getElementById('tz-list');
 const quickTz = document.getElementById('quick-tz');
 
-for (const zone of info.timeZones) {
-  const option = document.createElement('option');
-  option.value = zone;
-  tzList.appendChild(option);
+/** 所有时区 + 当前 UTC 偏移标签，偏移量只在第一次打开面板时算一次 */
+const tzEntries = info.timeZones.map((zone) => ({ zone, label: zone.replace(/_/g, ' '), offset: '' }));
+let tzOffsetsReady = false;
+let tzFiltered = [];
+let tzActive = -1;
+let tzTyping = false;
+// 打开面板时自身会滚动容器，短时间内忽略滚动事件，避免“刚打开就被自己关掉”
+let tzIgnoreScrollUntil = 0;
+
+function ensureTzOffsets() {
+  if (tzOffsetsReady) return;
+  const now = new Date();
+  for (const entry of tzEntries) {
+    try {
+      const name =
+        new Intl.DateTimeFormat('en-US', { timeZone: entry.zone, timeZoneName: 'shortOffset' })
+          .formatToParts(now)
+          .find((part) => part.type === 'timeZoneName')?.value || '';
+      entry.offset = name.replace('GMT', 'UTC');
+    } catch {
+      entry.offset = '';
+    }
+  }
+  tzOffsetsReady = true;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+function tzQuery() {
+  // 只有用户真的在输入时才按关键字过滤；单纯展开列表时展示全部
+  if (!tzTyping) return '';
+  return tzInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function renderTzPanel() {
+  ensureTzOffsets();
+  const q = tzQuery();
+  const matched = q ? tzEntries.filter((e) => e.zone.toLowerCase().includes(q)) : tzEntries.slice();
+  const cityOf = (zone) => zone.split('/').pop().toLowerCase();
+  matched.sort((a, b) => {
+    if (q) {
+      // 城市名命中的排最前，其次是时区名里包含关键字的
+      const rank = (e) => (cityOf(e.zone).startsWith(q) ? 0 : e.zone.toLowerCase().startsWith(q) ? 1 : 2);
+      const diff = rank(a) - rank(b);
+      if (diff) return diff;
+    }
+    return a.zone.localeCompare(b.zone);
+  });
+
+  tzFiltered = matched;
+  if (!matched.length) {
+    tzActive = -1;
+    tzPanel.innerHTML = '<div class="tz-empty">没有匹配的时区，试试输入城市名，例如 Tokyo</div>';
+    return;
+  }
+
+  // 未输入关键字时，把当前生效的时区高亮出来
+  const current = (config.time.timeZone === 'auto' ? systemTimeZone : config.time.timeZone || '').toLowerCase();
+  let activeIndex = q ? 0 : matched.findIndex((e) => e.zone.toLowerCase() === current);
+  if (activeIndex < 0) activeIndex = 0;
+  tzActive = activeIndex;
+
+  tzPanel.innerHTML = matched
+    .map(
+      (e, i) =>
+        `<div class="tz-option${i === activeIndex ? ' is-active' : ''}" role="option" data-index="${i}" data-zone="${escapeHtml(e.zone)}">` +
+        `<span class="tz-zone">${escapeHtml(e.label)}</span><span class="tz-offset">${escapeHtml(e.offset)}</span></div>`,
+    )
+    .join('');
+}
+
+function scrollActiveIntoView() {
+  const node = tzPanel.querySelector('.tz-option.is-active');
+  if (node) node.scrollIntoView({ block: 'nearest' });
+}
+
+function openTzPanel() {
+  if (tzField.classList.contains('is-disabled')) return;
+  if (!tzPanel.hidden) return;
+
+  renderTzPanel();
+  tzIgnoreScrollUntil = Date.now() + 900;
+
+  // 面板朝下打开；下方空间不够时把输入框滚进视口中央，避免被滚动容器裁掉
+  const panes = document.querySelector('.panes');
+  const paneRect = panes.getBoundingClientRect();
+  const rect = tzInput.getBoundingClientRect();
+  const below = paneRect.bottom - rect.bottom;
+  if (below < 260) {
+    tzField.scrollIntoView({ block: 'center' });
+    requestAnimationFrame(() => {
+      const r = tzInput.getBoundingClientRect();
+      tzPanel.style.maxHeight = `${Math.max(140, Math.min(240, paneRect.bottom - r.bottom - 16))}px`;
+    });
+  } else {
+    tzPanel.style.maxHeight = '240px';
+  }
+
+  tzPanel.hidden = false;
+  tzInput.setAttribute('aria-expanded', 'true');
+  const active = tzPanel.querySelector('.tz-option.is-active');
+  if (active) active.scrollIntoView({ block: 'center' });
+}
+
+function closeTzPanel() {
+  if (tzPanel.hidden) return;
+  tzPanel.hidden = true;
+  tzInput.setAttribute('aria-expanded', 'false');
+  tzTyping = false;
+}
+
+function setActiveOption(index) {
+  const options = [...tzPanel.querySelectorAll('.tz-option')];
+  if (!options.length) return;
+  const next = Math.max(0, Math.min(options.length - 1, index));
+  options.forEach((node, i) => node.classList.toggle('is-active', i === next));
+  tzActive = next;
+  options[next].scrollIntoView({ block: 'nearest' });
+}
+
+function applyTimeZone(zone) {
+  if (!info.timeZones.includes(zone)) {
+    toast('时区名无效，请从候选列表中选择', true);
+    syncTimeZoneUI();
+    return;
+  }
+  patchConfig({ time: { timeZone: zone } }, { immediate: true });
+  config = { ...config, time: { ...config.time, timeZone: zone } };
+  syncTimeZoneUI();
+  renderPreview();
 }
 
 for (const [label, zone] of QUICK_ZONES) {
@@ -303,32 +432,112 @@ for (const [label, zone] of QUICK_ZONES) {
   btn.className = 'chip-btn';
   btn.textContent = label;
   btn.addEventListener('click', () => {
-    patchConfig({ time: { timeZone: zone } }, { immediate: true });
-    config = { ...config, time: { ...config.time, timeZone: zone } };
-    syncTimeZoneUI();
-    renderPreview();
+    closeTzPanel();
+    applyTimeZone(zone);
   });
   quickTz.appendChild(btn);
 }
 
+tzInput.addEventListener('focus', () => openTzPanel());
+tzInput.addEventListener('click', () => openTzPanel());
+tzInput.addEventListener('input', () => {
+  tzTyping = true;
+  renderTzPanel();
+  if (tzPanel.hidden) {
+    tzPanel.hidden = false;
+    tzInput.setAttribute('aria-expanded', 'true');
+  }
+});
+tzInput.addEventListener('blur', () => {
+  // 点击面板时不要立刻关掉，交给面板的 mousedown 处理
+  setTimeout(() => {
+    if (!tzPanel.matches(':hover')) closeTzPanel();
+  }, 120);
+});
+
+tzInput.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    if (tzPanel.hidden) openTzPanel();
+    else setActiveOption(tzActive + 1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    if (!tzPanel.hidden) setActiveOption(tzActive - 1);
+  } else if (event.key === 'Enter') {
+    if (!tzPanel.hidden && tzFiltered[tzActive]) {
+      event.preventDefault();
+      applyTimeZone(tzFiltered[tzActive].zone);
+      closeTzPanel();
+      tzInput.blur();
+    }
+  } else if (event.key === 'Escape') {
+    if (!tzPanel.hidden) {
+      event.preventDefault();
+      closeTzPanel();
+      syncTimeZoneUI();
+    }
+  } else if (event.key === 'Tab') {
+    closeTzPanel();
+  }
+});
+
+tzToggle.addEventListener('mousedown', (event) => {
+  event.preventDefault();
+  if (tzPanel.hidden) {
+    tzInput.focus();
+    openTzPanel();
+  } else {
+    closeTzPanel();
+  }
+});
+
+tzPanel.addEventListener('mousedown', (event) => {
+  const option = event.target.closest('.tz-option');
+  if (!option) return;
+  event.preventDefault();
+  applyTimeZone(option.dataset.zone);
+  closeTzPanel();
+});
+
+tzPanel.addEventListener('mousemove', (event) => {
+  const option = event.target.closest('.tz-option');
+  if (!option) return;
+  const index = Number(option.dataset.index);
+  if (Number.isFinite(index) && index !== tzActive) setActiveOption(index);
+});
+
 tzInput.addEventListener('change', () => {
   const value = tzInput.value.trim();
   if (!value) return;
-  if (!info.timeZones.includes(value)) {
-    toast('时区名无效，请从候选列表中选择', true);
+  if (info.timeZones.includes(value)) {
+    applyTimeZone(value);
+  } else {
+    // 输入了无效时区：收起面板并恢复成当前生效的时区
+    closeTzPanel();
     syncTimeZoneUI();
-    return;
   }
-  patchConfig({ time: { timeZone: value } }, { immediate: true });
-  config = { ...config, time: { ...config.time, timeZone: value } };
-  syncTimeZoneUI();
-  renderPreview();
+});
+
+// 页面滚动 / 窗口失焦时收起，避免“浮”在内容上方
+document.querySelector('.panes').addEventListener(
+  'scroll',
+  () => {
+    if (Date.now() < tzIgnoreScrollUntil) return;
+    closeTzPanel();
+  },
+  { passive: true },
+);
+window.addEventListener('blur', closeTzPanel);
+document.addEventListener('mousedown', (event) => {
+  if (tzPanel.hidden) return;
+  if (!tzField.contains(event.target)) closeTzPanel();
 });
 
 const tzModeRadios = [...document.querySelectorAll('input[name="tzmode"]')];
 for (const radio of tzModeRadios) {
   radio.addEventListener('change', () => {
     if (!radio.checked) return;
+    closeTzPanel();
     if (radio.value === 'auto') {
       patchConfig({ time: { timeZone: 'auto' } }, { immediate: true });
       config = { ...config, time: { ...config.time, timeZone: 'auto' } };
@@ -345,6 +554,7 @@ function syncTimeZoneUI() {
   const isAuto = config.time.timeZone === 'auto';
   for (const radio of tzModeRadios) radio.checked = radio.value === (isAuto ? 'auto' : 'custom');
   tzField.classList.toggle('is-disabled', isAuto);
+  if (isAuto) closeTzPanel();
   if (!isAuto && tzInput !== document.activeElement) tzInput.value = config.time.timeZone;
   if (isAuto && tzInput !== document.activeElement) tzInput.value = systemTimeZone;
 }
