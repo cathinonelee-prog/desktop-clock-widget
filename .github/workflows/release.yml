@@ -1,8 +1,11 @@
 name: Release
 
-# 推送 v1.0.3 这样的 tag 时触发：
-#   git tag v1.0.3
-#   git push origin v1.0.3
+# 推送 v1.1.0 这样的 tag 时触发：
+#   git tag v1.1.0
+#   git push origin v1.1.0
+#
+# 版本说明：如果存在 docs/releases/<tag>.md，就用它作为 Release 正文（客户端更新提示也读这段）；
+# 否则自动根据提交生成。
 on:
   push:
     tags: ['v*']
@@ -36,7 +39,30 @@ jobs:
         run: |
           Compress-Archive -Path build\DesktopClock-win32-x64\* -DestinationPath DesktopClock-win32-x64.zip -CompressionLevel Optimal
 
-      - name: 创建 Release 并上传
+      - name: 查找版本说明
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $file = "docs/releases/$tag.md"
+          if (Test-Path $file) {
+            "exists=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "path=$file" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Host "使用版本说明：$file"
+          } else {
+            "exists=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Host "没有找到 $file，将自动生成说明"
+          }
+
+      - name: 创建 Release（使用 docs/releases 说明）
+        if: steps.notes.outputs.exists == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: DesktopClock-win32-x64.zip
+          body_path: ${{ steps.notes.outputs.path }}
+
+      - name: 创建 Release（自动生成说明）
+        if: steps.notes.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: DesktopClock-win32-x64.zip

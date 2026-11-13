@@ -983,6 +983,18 @@ const updateNotesWrap = document.getElementById('update-notes-wrap');
 const updateNotes = document.getElementById('update-notes');
 let latestState = null;
 
+/** Release 说明是 Markdown，更新卡片里用纯文本展示，去掉标记符号 */
+function formatReleaseNotes(markdown) {
+  return String(markdown)
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '· ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function renderUpdate(state) {
   if (!state) return;
   latestState = state;
@@ -995,7 +1007,7 @@ function renderUpdate(state) {
 
   const notes = (state.notes || '').trim();
   updateNotesWrap.hidden = !notes;
-  updateNotes.textContent = notes;
+  updateNotes.textContent = formatReleaseNotes(notes);
 
   btnInstallUpdate.hidden = true;
   btnInstallUpdate.disabled = false;
