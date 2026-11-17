@@ -101,11 +101,11 @@ class CalendarWindow {
     else this.show(instanceId);
   }
 
-  /** 自动隐藏：鼠标离开后延迟一点点，避免移动到边缘抖动 */
-  scheduleHide(delay = 500) {
+  /** 自动隐藏：鼠标离开后延迟一点点，留出移动到日历上的时间 */
+  scheduleHide(delay) {
     if (this.cfg.hideMode !== 'auto') return;
     clearTimeout(this.hideTimer);
-    this.hideTimer = setTimeout(() => this.hide(), delay);
+    this.hideTimer = setTimeout(() => this.hide(), Math.max(100, delay ?? this.cfg.hideDelayMs ?? 800));
     if (this.hideTimer.unref) this.hideTimer.unref();
   }
 

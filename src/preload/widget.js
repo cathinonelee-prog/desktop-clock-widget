@@ -21,11 +21,6 @@ contextBridge.exposeInMainWorld('clockWidget', {
     ipcRenderer.on('clock:state', handler);
     return () => ipcRenderer.removeListener('clock:state', handler);
   },
-  onHover: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('widget:hover', handler);
-    return () => ipcRenderer.removeListener('widget:hover', handler);
-  },
   resize: (size) => ipcRenderer.send('widget:size', size),
   contextMenu: () => ipcRenderer.send('widget:contextmenu', instanceId),
   openSettings: () => ipcRenderer.invoke('app:openSettings'),

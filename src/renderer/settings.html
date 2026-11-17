@@ -177,6 +177,9 @@
                     <label class="seg-item"><input type="radio" name="cal-hide" value="auto" data-path="calendar.hideMode" /><span>鼠标移开自动隐藏</span></label>
                     <label class="seg-item"><input type="radio" name="cal-hide" value="manual" data-path="calendar.hideMode" /><span>手动关闭</span></label>
                   </div>
+                  <label for="cal-hide-delay" class="sub-label">自动隐藏延时（毫秒）</label>
+                  <input id="cal-hide-delay" type="number" min="100" max="5000" step="100" data-path="calendar.hideDelayMs" />
+                  <span class="hint">留出从时钟移动到日历的时间，默认 800ms。</span>
                 </div>
               </div>
 

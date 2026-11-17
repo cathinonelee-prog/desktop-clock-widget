@@ -156,19 +156,12 @@ document.body.addEventListener('clock-open-settings', () => {
   else api.openSettings();
 });
 
-api.onHover(({ inside }) => {
-  if (inside) handleHoverEnter();
-  else handleHoverLeave();
-});
-
 // 拖动（跨屏可用）
 const panelEl = view.element;
 let drag = null;
 let pressStart = null;
 let pressMoved = false;
 let clickTimer = null;
-let hoverActive = false;
-let hoverTimer = null;
 
 function calendarConfig() {
   return config.calendar || { enabled: false, trigger: 'none', hoverDelayMs: 250, hideMode: 'auto' };
@@ -183,40 +176,6 @@ function scheduleClickTrigger() {
     if (cal.trigger === 'click') api.calendarToggle();
   }, 220);
 }
-
-function handleHoverEnter() {
-  if (hoverActive) return;
-  hoverActive = true;
-  const cal = calendarConfig();
-  if (!cal.enabled || cal.trigger !== 'hover') return;
-  clearTimeout(hoverTimer);
-  hoverTimer = setTimeout(() => {
-    if (drag) return;
-    api.calendarShow();
-  }, Math.max(0, cal.hoverDelayMs ?? 250));
-}
-
-function handleHoverLeave() {
-  if (!hoverActive) return;
-  hoverActive = false;
-  clearTimeout(hoverTimer);
-  const cal = calendarConfig();
-  if (!cal.enabled || cal.trigger !== 'hover') return;
-  if (cal.hideMode === 'auto') api.calendarHide();
-}
-
-panelEl.addEventListener('pointerenter', handleHoverEnter);
-panelEl.addEventListener('pointerleave', handleHoverLeave);
-
-// 点击穿透模式下窗口收不到 pointer 事件，但启用了 forward 的 mousemove 仍会到达，
-// 这里用坐标自行判断进入/离开，保证“穿透 + 悬浮触发”可用。
-window.addEventListener('mousemove', (event) => {
-  const rect = panelEl.getBoundingClientRect();
-  const inside =
-    event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-  if (inside) handleHoverEnter();
-  else handleHoverLeave();
-});
 
 panelEl.addEventListener('pointerdown', (event) => {
   if (event.button !== 0 || config.window.locked) return;
@@ -237,7 +196,6 @@ window.addEventListener('pointermove', (event) => {
   if (pressStart && Math.hypot(event.screenX - pressStart.x, event.screenY - pressStart.y) > 4) {
     if (!pressMoved) api.calendarHide();
     pressMoved = true;
-    clearTimeout(hoverTimer);
   }
   drag.pending = { x: event.screenX, y: event.screenY };
   if (drag.raf) return;

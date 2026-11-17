@@ -336,25 +336,70 @@ function openSettings(tab) {
   }
 }
 
-/** 轮询光标位置实现“悬浮触发”：鼠标点击穿透时窗口收不到任何鼠标事件 */
+/**
+ * 悬浮触发：主进程轮询光标位置来驱动显示/隐藏。
+ * 这么做有两个原因：
+ *   1. 点击穿透时窗口收不到任何鼠标事件（Electron 的 forward 也不可靠）
+ *   2. 悬停区域要同时覆盖「时钟 + 日历卡片」，否则从时钟移到日历的途中会误判为离开
+ */
 function startHoverPoll() {
   clearInterval(hoverPollTimer);
   hoverPollTimer = null;
-  if (config.get().calendar.trigger !== 'hover') return;
+  const calCfg = config.get().calendar;
+  if (!calCfg.enabled || calCfg.trigger !== 'hover') return;
 
-  const states = new Map();
+  let showTimer = null;
+  let hideTimer = null;
+
+  const insideRect = (point, rect) =>
+    point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+
   hoverPollTimer = setInterval(() => {
     if (!windowManager) return;
     const point = screen.getCursorScreenPoint();
+
+    let hoveredInstance = null;
     for (const [id, win] of windowManager.windows) {
       if (win.isDestroyed() || !win.isVisible()) continue;
-      const b = win.getBounds();
-      const inside = point.x >= b.x && point.x <= b.x + b.width && point.y >= b.y && point.y <= b.y + b.height;
-      if (states.get(id) === inside) continue;
-      states.set(id, inside);
-      win.webContents.send('widget:hover', { inside });
+      if (insideRect(point, win.getBounds())) {
+        hoveredInstance = id;
+        break;
+      }
     }
-  }, 120);
+
+    const calWin = calendarWindow?.win;
+    const overCalendar = calWin && !calWin.isDestroyed() && calWin.isVisible() && insideRect(point, calWin.getBounds());
+    const cfg = config.get().calendar;
+
+    if (hoveredInstance) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+      if (!calendarWindow?.isVisible() && !showTimer) {
+        const target = hoveredInstance;
+        showTimer = setTimeout(() => {
+          showTimer = null;
+          calendarWindow?.show(target);
+        }, Math.max(0, cfg.hoverDelayMs ?? 250));
+        if (showTimer.unref) showTimer.unref();
+      }
+    } else if (overCalendar) {
+      // 鼠标已经移到日历上：取消一切隐藏，给它足够时间操作
+      clearTimeout(hideTimer);
+      clearTimeout(showTimer);
+      hideTimer = null;
+      showTimer = null;
+    } else {
+      clearTimeout(showTimer);
+      showTimer = null;
+      if (calendarWindow?.isVisible() && cfg.hideMode === 'auto' && !hideTimer) {
+        hideTimer = setTimeout(() => {
+          hideTimer = null;
+          calendarWindow?.hide();
+        }, Math.max(200, cfg.hideDelayMs ?? 800));
+        if (hideTimer.unref) hideTimer.unref();
+      }
+    }
+  }, 100);
   if (hoverPollTimer.unref) hoverPollTimer.unref();
 }
 
@@ -494,7 +539,7 @@ function registerIpc() {
   ipcMain.on('calendar:hide', () => calendarWindow?.hide());
   ipcMain.on('calendar:size', (_e, size) => calendarWindow?.setSize(size));
   ipcMain.on('calendar:enter', () => calendarWindow?.cancelHide());
-  ipcMain.on('calendar:leave', () => calendarWindow?.scheduleHide());
+  ipcMain.on('calendar:leave', () => calendarWindow?.scheduleHide(config.get().calendar.hideDelayMs));
   ipcMain.on('calendar:close', () => calendarWindow?.hide());
 
   ipcMain.on('widget:size', (event, size) => {

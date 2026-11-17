@@ -68,6 +68,7 @@ const DEFAULT_CONFIG = {
     trigger: 'click', // none | click | dblclick | hover
     hoverDelayMs: 250,
     hideMode: 'auto', // auto（鼠标移开自动隐藏）| manual（点 × 或再次点击时钟关闭）
+    hideDelayMs: 800, // 鼠标离开后多久隐藏，留出移到日历上的时间
     months: 1, // 1 | 2
     weekStart: 'mon', // mon | sun
     showAdjacent: true,
@@ -235,6 +236,7 @@ function sanitize(input) {
   cfg.calendar.enabled = Boolean(cfg.calendar.enabled);
   cfg.calendar.trigger = ['none', 'click', 'dblclick', 'hover'].includes(cfg.calendar.trigger) ? cfg.calendar.trigger : 'click';
   cfg.calendar.hoverDelayMs = Math.round(clamp(cfg.calendar.hoverDelayMs, [0, 3000], 250));
+  cfg.calendar.hideDelayMs = Math.round(clamp(cfg.calendar.hideDelayMs, [100, 5000], 800));
   cfg.calendar.hideMode = cfg.calendar.hideMode === 'manual' ? 'manual' : 'auto';
   cfg.calendar.months = Number(cfg.calendar.months) === 2 ? 2 : 1;
   cfg.calendar.weekStart = cfg.calendar.weekStart === 'sun' ? 'sun' : 'mon';
