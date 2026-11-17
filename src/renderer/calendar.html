@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'"
+    />
+    <title>日历</title>
+    <link rel="stylesheet" href="widget.css" />
+    <link rel="stylesheet" href="calendar.css" />
+  </head>
+  <body class="widget-page widget-root">
+    <div class="panel cal-panel" id="cal-panel">
+      <div class="cal-toolbar">
+        <button type="button" class="cal-nav" id="cal-prev" title="上一个月">‹</button>
+        <div class="cal-title" id="cal-title">—</div>
+        <button type="button" class="cal-nav" id="cal-next" title="下一个月">›</button>
+        <button type="button" class="cal-today" id="cal-today">今天</button>
+        <button type="button" class="cal-close" id="cal-close" title="关闭日历">×</button>
+      </div>
+      <div class="cal-months" id="cal-months"></div>
+      <div class="cal-legend" id="cal-legend">
+        <span class="cal-legend-item"><i class="dot today"></i>今天</span>
+        <span class="cal-legend-item"><i class="dot weekend"></i>周末</span>
+        <span class="cal-legend-item"><i class="dot holiday"></i>放假</span>
+        <span class="cal-legend-item"><i class="dot workday"></i>调休上班</span>
+      </div>
+    </div>
+    <script src="../vendor/lunar.js"></script>
+    <script type="module" src="calendar.js"></script>
+  </body>
+</html>

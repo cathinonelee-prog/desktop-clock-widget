@@ -216,6 +216,10 @@ class WindowManager {
     return null;
   }
 
+  windowFor(instanceId) {
+    return this.windows.get(instanceId) || null;
+  }
+
   /** 根据配置增删窗口 */
   sync() {
     const cfg = this.configData;

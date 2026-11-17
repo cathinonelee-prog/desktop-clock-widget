@@ -4,7 +4,7 @@ import { PRESETS, presetOf, partsOf } from './presets.mjs';
 import { zonedParts, formatTime, offsetLabel } from './format.mjs';
 
 const TIME_SIZE = { xl: 66, lg: 52, md: 36, sm: 21 };
-const FONT_STACKS = {
+export const FONT_STACKS = {
   default: `'Segoe UI Variable Display', 'Segoe UI', 'Bahnschrift', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif`,
   sans: `'Microsoft YaHei UI', 'Segoe UI', system-ui, sans-serif`,
   serif: `'Source Han Serif SC', 'Songti SC', 'SimSun', serif`,
@@ -272,3 +272,4 @@ export function createClockView(host, { preview = false } = {}) {
 
   return { update, measure, panel, element: panel };
 }
+

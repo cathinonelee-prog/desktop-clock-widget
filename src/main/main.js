@@ -20,6 +20,7 @@ const { ConfigStore } = require('./config');
 const { ClockService } = require('./clock');
 const { WindowManager } = require('./windows');
 const { Updater } = require('./updater');
+const { CalendarWindow } = require('./calendar-window');
 const { registerAppProtocol, createSettingsWindow } = require('./shell');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -70,6 +71,8 @@ let updateTimer = null;
 let failedHotkeys = [];
 let lastFailedHotkeyKey = '';
 let registeredHotkeySignature = '';
+let calendarWindow = null;
+let hoverPollTimer = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -228,6 +231,7 @@ function buildWidgetMenu(instanceId) {
       click: () => config.update({ window: { clickThrough: !cfg.window.clickThrough } }),
     },
     { type: 'separator' },
+    { label: '显示日历卡片', click: () => calendarWindow?.show(instanceId) },
     { label: '隐藏这个时钟', click: () => updateInstance(instanceId, { hidden: true }) },
     { label: '立即对齐网络时间', click: () => clock.sync() },
     { label: '设置…', click: () => openSettings() },
@@ -330,6 +334,28 @@ function openSettings(tab) {
   } catch (err) {
     log(`[settings] create failed ${err?.stack || err}`);
   }
+}
+
+/** 轮询光标位置实现“悬浮触发”：鼠标点击穿透时窗口收不到任何鼠标事件 */
+function startHoverPoll() {
+  clearInterval(hoverPollTimer);
+  hoverPollTimer = null;
+  if (config.get().calendar.trigger !== 'hover') return;
+
+  const states = new Map();
+  hoverPollTimer = setInterval(() => {
+    if (!windowManager) return;
+    const point = screen.getCursorScreenPoint();
+    for (const [id, win] of windowManager.windows) {
+      if (win.isDestroyed() || !win.isVisible()) continue;
+      const b = win.getBounds();
+      const inside = point.x >= b.x && point.x <= b.x + b.width && point.y >= b.y && point.y <= b.y + b.height;
+      if (states.get(id) === inside) continue;
+      states.set(id, inside);
+      win.webContents.send('widget:hover', { inside });
+    }
+  }, 120);
+  if (hoverPollTimer.unref) hoverPollTimer.unref();
 }
 
 function registerShortcuts() {
@@ -462,6 +488,15 @@ function registerIpc() {
   });
   ipcMain.handle('hotkeys:state', () => failedHotkeys.slice());
 
+  // —— 日历浮层 ——
+  ipcMain.on('calendar:toggle', (_e, instanceId) => calendarWindow?.toggle(instanceId));
+  ipcMain.on('calendar:show', (_e, instanceId) => calendarWindow?.show(instanceId));
+  ipcMain.on('calendar:hide', () => calendarWindow?.hide());
+  ipcMain.on('calendar:size', (_e, size) => calendarWindow?.setSize(size));
+  ipcMain.on('calendar:enter', () => calendarWindow?.cancelHide());
+  ipcMain.on('calendar:leave', () => calendarWindow?.scheduleHide());
+  ipcMain.on('calendar:close', () => calendarWindow?.hide());
+
   ipcMain.on('widget:size', (event, size) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed()) return;
@@ -520,7 +555,11 @@ async function runCapture(dir) {
       }
       await new Promise((r) => setTimeout(r, 600));
     }
-    for (const win of wins) {
+    // JS 可能新建了窗口（例如日历浮层），这里重新取一次窗口列表
+    const captureWins = BrowserWindow.getAllWindows();
+    for (const win of captureWins) {
+      if (win.isDestroyed()) continue;
+      if (!win.isVisible()) win.showInactive();
       const diag = await win.webContents
         .executeJavaScript(
           `(() => {
@@ -541,7 +580,12 @@ async function runCapture(dir) {
         )
         .catch((err) => ({ error: String(err) }));
       log(`[capture diag] ${JSON.stringify(diag)}`);
-      const name = win === settingsWin ? 'settings' : `widget-${windowManager.idOf(win) || 'x'}`;
+      const name =
+        win === settingsWin
+          ? 'settings'
+          : win === calendarWindow?.win
+            ? 'calendar'
+            : `widget-${windowManager.idOf(win) || 'x'}`;
       const image = await win.webContents.capturePage();
       fs.writeFileSync(path.join(dir, `${name}.png`), image.toPNG());
     }
@@ -582,6 +626,8 @@ app.whenReady().then(() => {
   createTray();
   windowManager.sync();
   log('windows synced');
+  calendarWindow = new CalendarWindow({ config, rootDir: ROOT, windowManager, log });
+  startHoverPoll();
   applyAutostart(config.get().behavior.autostart);
   registerShortcuts();
 
@@ -634,6 +680,7 @@ app.whenReady().then(() => {
   clock.on('state', (state) => {
     windowManager.broadcast('clock:state', state);
     if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('clock:state', state);
+    if (calendarWindow?.win && !calendarWindow.win.isDestroyed()) calendarWindow.win.webContents.send('clock:state', state);
   });
   clock.start();
 
@@ -643,6 +690,13 @@ app.whenReady().then(() => {
     registerShortcuts();
     pushConfig();
     scheduleUpdateCheck();
+    calendarWindow?.applyLook();
+    startHoverPoll();
+    if (!config.get().calendar.enabled) calendarWindow?.hide();
+    const anchorHidden = calendarWindow?.anchorId
+      ? config.get().instances.find((i) => i.id === calendarWindow.anchorId)?.hidden
+      : false;
+    if (anchorHidden) calendarWindow?.hide();
   });
 
   app.on('activate', () => windowManager.showAll());
@@ -655,6 +709,7 @@ app.whenReady().then(() => {
   app.on('will-quit', () => {
     clock?.stop();
     clearInterval(updateTimer);
+    clearInterval(hoverPollTimer);
   });
 
   screen.on('display-added', () => {
@@ -680,5 +735,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   // 常驻托盘：关闭所有窗口也不退出
 });
+
+
+
 
 

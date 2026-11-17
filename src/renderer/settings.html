@@ -25,6 +25,7 @@
           <nav class="nav" id="nav">
             <button class="nav-item is-active" data-tab="clock">时钟与授时</button>
             <button class="nav-item" data-tab="display">显示内容</button>
+            <button class="nav-item" data-tab="calendar">日历</button>
             <button class="nav-item" data-tab="look">外观</button>
             <button class="nav-item" data-tab="window">窗口层级</button>
             <button class="nav-item" data-tab="screens">多屏与实例</button>
@@ -146,6 +147,70 @@
 
               <h2>显示元素</h2>
               <div class="parts-grid" id="parts-grid"></div>
+            </section>
+
+            <!-- ========== 日历 ========== -->
+            <section class="pane" data-tab="calendar">
+              <h2>日历卡片</h2>
+              <p class="muted">
+                在时钟卡片上点击 / 双击 / 悬浮即可弹出日历，用来快速确认日期和接下来的安排。
+              </p>
+              <label class="check"><input type="checkbox" data-path="calendar.enabled" /><span>启用日历卡片</span></label>
+
+              <h2>激活方式</h2>
+              <div class="seg" role="radiogroup" aria-label="日历激活方式">
+                <label class="seg-item"><input type="radio" name="cal-trigger" value="none" data-path="calendar.trigger" /><span>不自动弹出</span></label>
+                <label class="seg-item"><input type="radio" name="cal-trigger" value="click" data-path="calendar.trigger" /><span>单击</span></label>
+                <label class="seg-item"><input type="radio" name="cal-trigger" value="dblclick" data-path="calendar.trigger" /><span>双击</span></label>
+                <label class="seg-item"><input type="radio" name="cal-trigger" value="hover" data-path="calendar.trigger" /><span>悬浮</span></label>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="cal-delay">悬浮触发延时（毫秒）</label>
+                  <input id="cal-delay" type="number" min="0" max="3000" step="50" data-path="calendar.hoverDelayMs" />
+                  <span class="hint">只在「悬浮」激活时生效，避免鼠标路过就弹出。</span>
+                </div>
+                <div class="field">
+                  <label>隐藏方式</label>
+                  <div class="seg small" role="radiogroup" aria-label="日历隐藏方式">
+                    <label class="seg-item"><input type="radio" name="cal-hide" value="auto" data-path="calendar.hideMode" /><span>鼠标移开自动隐藏</span></label>
+                    <label class="seg-item"><input type="radio" name="cal-hide" value="manual" data-path="calendar.hideMode" /><span>手动关闭</span></label>
+                  </div>
+                </div>
+              </div>
+
+              <p class="muted">
+                选择「双击」时，双击会用于打开日历，设置改从右键菜单或托盘打开。
+                开启「鼠标点击穿透」后点击事件不会传到时钟，此时单击 / 双击无效，可改用悬浮触发。
+              </p>
+
+              <h2>显示范围</h2>
+              <div class="grid-2">
+                <div class="field">
+                  <label>显示月份</label>
+                  <div class="seg small" role="radiogroup" aria-label="显示月份">
+                    <label class="seg-item"><input type="radio" name="cal-months" value="1" data-path="calendar.months" /><span>单月</span></label>
+                    <label class="seg-item"><input type="radio" name="cal-months" value="2" data-path="calendar.months" /><span>双月</span></label>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>每周起始</label>
+                  <div class="seg small" role="radiogroup" aria-label="每周起始">
+                    <label class="seg-item"><input type="radio" name="cal-week" value="mon" data-path="calendar.weekStart" /><span>周一</span></label>
+                    <label class="seg-item"><input type="radio" name="cal-week" value="sun" data-path="calendar.weekStart" /><span>周日</span></label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>显示内容</label>
+                <label class="check"><input type="checkbox" data-path="calendar.showAdjacent" /><span>显示相邻月份补白日期</span></label>
+                <label class="check"><input type="checkbox" data-path="calendar.highlightWeekend" /><span>高亮双休日</span></label>
+                <label class="check"><input type="checkbox" data-path="calendar.showHolidays" /><span>显示法定节假日与调休（休 / 班）</span></label>
+                <label class="check"><input type="checkbox" data-path="calendar.showLunar" /><span>显示农历</span></label>
+                <label class="check"><input type="checkbox" data-path="calendar.showTerms" /><span>显示节气</span></label>
+              </div>
             </section>
 
             <!-- ========== 外观 ========== -->

@@ -21,9 +21,17 @@ contextBridge.exposeInMainWorld('clockWidget', {
     ipcRenderer.on('clock:state', handler);
     return () => ipcRenderer.removeListener('clock:state', handler);
   },
+  onHover: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('widget:hover', handler);
+    return () => ipcRenderer.removeListener('widget:hover', handler);
+  },
   resize: (size) => ipcRenderer.send('widget:size', size),
   contextMenu: () => ipcRenderer.send('widget:contextmenu', instanceId),
   openSettings: () => ipcRenderer.invoke('app:openSettings'),
+  calendarToggle: () => ipcRenderer.send('calendar:toggle', instanceId),
+  calendarShow: () => ipcRenderer.send('calendar:show', instanceId),
+  calendarHide: () => ipcRenderer.send('calendar:hide'),
   dragStart: (point) => ipcRenderer.send('widget:drag-start', point),
   dragMove: (point) => ipcRenderer.send('widget:drag-move', point),
   dragEnd: () => ipcRenderer.send('widget:drag-end'),

@@ -63,6 +63,19 @@ const DEFAULT_CONFIG = {
     autoCheck: true,
     feed: '', // 留空 = 使用内置的 GitHub Releases 地址；仅测试时覆盖
   },
+  calendar: {
+    enabled: true,
+    trigger: 'click', // none | click | dblclick | hover
+    hoverDelayMs: 250,
+    hideMode: 'auto', // auto（鼠标移开自动隐藏）| manual（点 × 或再次点击时钟关闭）
+    months: 1, // 1 | 2
+    weekStart: 'mon', // mon | sun
+    showAdjacent: true,
+    highlightWeekend: true,
+    showHolidays: true,
+    showLunar: true,
+    showTerms: true,
+  },
   hotkeys: {
     toggle: 'Control+Alt+T',
     sync: 'Control+Alt+N',
@@ -218,6 +231,16 @@ function sanitize(input) {
 
   cfg.update.autoCheck = Boolean(cfg.update.autoCheck);
   cfg.update.feed = /^https?:\/\//i.test(String(cfg.update.feed || '')) ? String(cfg.update.feed) : '';
+
+  cfg.calendar.enabled = Boolean(cfg.calendar.enabled);
+  cfg.calendar.trigger = ['none', 'click', 'dblclick', 'hover'].includes(cfg.calendar.trigger) ? cfg.calendar.trigger : 'click';
+  cfg.calendar.hoverDelayMs = Math.round(clamp(cfg.calendar.hoverDelayMs, [0, 3000], 250));
+  cfg.calendar.hideMode = cfg.calendar.hideMode === 'manual' ? 'manual' : 'auto';
+  cfg.calendar.months = Number(cfg.calendar.months) === 2 ? 2 : 1;
+  cfg.calendar.weekStart = cfg.calendar.weekStart === 'sun' ? 'sun' : 'mon';
+  for (const key of ['showAdjacent', 'highlightWeekend', 'showHolidays', 'showLunar', 'showTerms']) {
+    cfg.calendar[key] = Boolean(cfg.calendar[key]);
+  }
 
   cfg.hotkeys.toggle = typeof cfg.hotkeys.toggle === 'string' ? cfg.hotkeys.toggle : d.hotkeys.toggle;
   cfg.hotkeys.sync = typeof cfg.hotkeys.sync === 'string' ? cfg.hotkeys.sync : d.hotkeys.sync;
