@@ -62,6 +62,10 @@ class CalendarWindow {
     this.win.setMenuBarVisibility(false);
     if (cfg.window.layer === 'alwaysOnTop') this.win.setAlwaysOnTop(true, 'floating');
     this.win.loadURL('app://clock/renderer/calendar.html');
+    // 常驻窗口：启动后就显示为全透明且点击穿透，之后只切换 CSS 透明度，
+    // 避免反复 show/hide 触发合成器重绘造成闪烁。
+    this.win.setIgnoreMouseEvents(true, { forward: false });
+    this.win.showInactive();
     this.win.webContents.on('console-message', (event) => this.log?.(`[calendar] ${event.message}`));
     this.win.on('closed', () => {
       this.win = null;
@@ -111,20 +115,20 @@ class CalendarWindow {
     this.applyLook();
     this.position();
 
+    clearTimeout(this.hideTimer);
     clearTimeout(this.hideFinishTimer);
+    this.hideTimer = null;
     this.hideFinishTimer = null;
 
+    // 窗口常驻（全透明 + 点击穿透），显示时只需要开始接收鼠标并淡入，
+    // 不再 show/hide，避免合成器重新分配导致的那一下闪烁。
+    win.setIgnoreMouseEvents(false);
+    this.sendOpacity(1, this.visible ? 90 : 150);
     if (!this.visible) {
-      this.sendOpacity(0, 0);
-      win.showInactive();
       this.visible = true;
-      setTimeout(() => this.sendOpacity(1, 150), 20);
-    } else {
-      this.sendOpacity(1, 120);
+      this.log?.(`calendar shown anchor=${this.anchorId} size=${this.size.width}x${this.size.height} bounds=${JSON.stringify(win.getBounds())}`);
     }
-
     win.webContents.send('calendar:opened', { at: Date.now() });
-    this.log?.(`calendar shown anchor=${this.anchorId} size=${this.size.width}x${this.size.height}`);
   }
 
   hide() {
@@ -133,14 +137,14 @@ class CalendarWindow {
     if (!this.win || this.win.isDestroyed() || !this.visible) return;
     this.log?.('calendar hidden');
     this.sendOpacity(0, 140);
+    this.visible = false;
     clearTimeout(this.hideFinishTimer);
     this.hideFinishTimer = setTimeout(() => {
       this.hideFinishTimer = null;
-      if (this.win && !this.win.isDestroyed()) {
-        this.win.hide();
-        this.sendOpacity(1, 0);
+      // 淡出完成后恢复点击穿透；窗口本身保留，下次显示直接淡入
+      if (this.win && !this.win.isDestroyed() && !this.visible) {
+        this.win.setIgnoreMouseEvents(true, { forward: false });
       }
-      this.visible = false;
     }, 170);
     if (this.hideFinishTimer.unref) this.hideFinishTimer.unref();
   }
@@ -169,7 +173,11 @@ class CalendarWindow {
     const height = Math.max(180, Math.min(1000, Math.round(size.height)));
     if (width === this.size.width && height === this.size.height) return;
     this.size = { width, height };
-    if (this.isVisible()) this.position();
+    // 显示时如果只差几个像素就不要挪窗口，避免出现可见的跳动
+    if (!this.isVisible()) return;
+    const b = this.win.getBounds();
+    if (Math.abs(b.width - width) <= 3 && Math.abs(b.height - height) <= 3) return;
+    this.position();
   }
 
   anchorBounds() {
@@ -216,4 +224,7 @@ class CalendarWindow {
 }
 
 module.exports = { CalendarWindow };
+
+
+
 

@@ -214,11 +214,11 @@ async function render() {
     const height = Math.ceil(rect.height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)) + 4;
     api.resize({ width, height });
   };
-  requestAnimationFrame(() => {
-    measure();
-    // 字体/网格排版稳定后再量一次，避免窗口比内容窄一点导致右侧被裁
-    setTimeout(measure, 120);
-  });
+  // 同步量一次：窗口隐藏时 rAF 不会触发，若等到显示后才量，
+  // 窗口会先以旧尺寸出现、再跳成新尺寸，看起来就是“闪一下”。
+  measure();
+  requestAnimationFrame(measure);
+  setTimeout(measure, 120);
 }
 
 document.getElementById('cal-prev').addEventListener('click', () => {
@@ -264,5 +264,11 @@ api.onClock((state) => {
 });
 
 render();
+
+
+
+
+
+
 
 
