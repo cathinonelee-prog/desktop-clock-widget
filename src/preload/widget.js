@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('clockWidget', {
     return () => ipcRenderer.removeListener('clock:state', handler);
   },
   resize: (size) => ipcRenderer.send('widget:size', size),
+  panelRect: (rect) => ipcRenderer.send('widget:panel-rect', rect),
   contextMenu: () => ipcRenderer.send('widget:contextmenu', instanceId),
   openSettings: () => ipcRenderer.invoke('app:openSettings'),
   calendarToggle: () => ipcRenderer.send('calendar:toggle', instanceId),

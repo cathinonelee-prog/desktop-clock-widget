@@ -361,14 +361,16 @@ function startHoverPoll() {
     let hoveredInstance = null;
     for (const [id, win] of windowManager.windows) {
       if (win.isDestroyed() || !win.isVisible()) continue;
-      if (insideRect(point, win.getBounds())) {
+      const b = win.getBounds();
+      const r = windowManager.panelRectFor(id);
+      const hit = r ? { x: b.x + r.x, y: b.y + r.y, width: r.width, height: r.height } : b;
+      if (insideRect(point, hit)) {
         hoveredInstance = id;
         break;
       }
     }
 
-    const calWin = calendarWindow?.win;
-    const overCalendar = calWin && !calWin.isDestroyed() && calWin.isVisible() && insideRect(point, calWin.getBounds());
+    const overCalendar = insideRect(point, calendarWindow?.hitRect() || { x: 0, y: 0, width: 0, height: 0 });
     const cfg = config.get().calendar;
 
     if (hoveredInstance) {
@@ -538,6 +540,12 @@ function registerIpc() {
   ipcMain.on('calendar:show', (_e, instanceId) => calendarWindow?.show(instanceId));
   ipcMain.on('calendar:hide', () => calendarWindow?.hide());
   ipcMain.on('calendar:size', (_e, size) => calendarWindow?.setSize(size));
+  ipcMain.on('calendar:panel-rect', (_e, rect) => calendarWindow?.setPanelRect(rect));
+  ipcMain.on('widget:panel-rect', (event, rect) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const id = win ? windowManager.idOf(win) : null;
+    if (id) windowManager.setPanelRect(id, rect);
+  });
   ipcMain.on('calendar:enter', () => calendarWindow?.cancelHide());
   ipcMain.on('calendar:leave', () => calendarWindow?.scheduleHide(config.get().calendar.hideDelayMs));
   ipcMain.on('calendar:close', () => calendarWindow?.hide());
@@ -672,6 +680,8 @@ app.whenReady().then(() => {
   windowManager.sync();
   log('windows synced');
   calendarWindow = new CalendarWindow({ config, rootDir: ROOT, windowManager, log });
+  // 预创建日历窗口（隐藏）：首帧就绪后，悬浮时不会先闪一下空白再变成正确尺寸
+  if (config.get().calendar.enabled) calendarWindow.ensure();
   startHoverPoll();
   applyAutostart(config.get().behavior.autostart);
   registerShortcuts();

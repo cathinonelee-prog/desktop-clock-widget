@@ -86,6 +86,8 @@ function render() {
 
 function pushSize(force = false) {
   const size = view.measure();
+  const rect = view.element.getBoundingClientRect();
+  api.panelRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
   if (!size.width || !size.height) return;
   if (!force && Math.abs(size.width - lastSize.width) < 2 && Math.abs(size.height - lastSize.height) < 2) return;
   lastSize = size;

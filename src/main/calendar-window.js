@@ -20,6 +20,9 @@ class CalendarWindow {
     this.size = { ...DEFAULT_SIZE };
     this.anchorId = null;
     this.hideTimer = null;
+    this.visible = false;
+    this.hideFinishTimer = null;
+    this.panelRect = null; // 可见面板相对窗口的位置（不含透明留白）
   }
 
   get cfg() {
@@ -62,12 +65,37 @@ class CalendarWindow {
     this.win.webContents.on('console-message', (event) => this.log?.(`[calendar] ${event.message}`));
     this.win.on('closed', () => {
       this.win = null;
+      this.visible = false;
     });
     return this.win;
   }
 
   isVisible() {
-    return Boolean(this.win && !this.win.isDestroyed() && this.win.isVisible());
+    return Boolean(this.win && !this.win.isDestroyed() && this.visible);
+  }
+
+  /** 可见面板在屏幕上的矩形（用于悬浮命中判断，排除窗口四周的透明留白） */
+  hitRect() {
+    if (!this.win || this.win.isDestroyed() || !this.visible) return null;
+    const b = this.win.getBounds();
+    const r = this.panelRect;
+    if (!r) return { x: b.x, y: b.y, width: b.width, height: b.height };
+    return { x: b.x + r.x, y: b.y + r.y, width: r.width, height: r.height };
+  }
+
+  setPanelRect(rect) {
+    if (!rect) return;
+    this.panelRect = {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    };
+  }
+
+  /** 透明窗口上 setOpacity 不生效，改成让渲染进程做 CSS 透明度过渡 */
+  sendOpacity(value, duration = 150) {
+    if (this.win && !this.win.isDestroyed()) this.win.webContents.send('calendar:opacity', { value, duration });
   }
 
   applyLook() {
@@ -82,7 +110,19 @@ class CalendarWindow {
     if (instanceId) this.anchorId = instanceId;
     this.applyLook();
     this.position();
-    win.showInactive();
+
+    clearTimeout(this.hideFinishTimer);
+    this.hideFinishTimer = null;
+
+    if (!this.visible) {
+      this.sendOpacity(0, 0);
+      win.showInactive();
+      this.visible = true;
+      setTimeout(() => this.sendOpacity(1, 150), 20);
+    } else {
+      this.sendOpacity(1, 120);
+    }
+
     win.webContents.send('calendar:opened', { at: Date.now() });
     this.log?.(`calendar shown anchor=${this.anchorId} size=${this.size.width}x${this.size.height}`);
   }
@@ -90,10 +130,19 @@ class CalendarWindow {
   hide() {
     clearTimeout(this.hideTimer);
     this.hideTimer = null;
-    if (this.win && !this.win.isDestroyed()) {
-      if (this.win.isVisible()) this.log?.('calendar hidden');
-      this.win.hide();
-    }
+    if (!this.win || this.win.isDestroyed() || !this.visible) return;
+    this.log?.('calendar hidden');
+    this.sendOpacity(0, 140);
+    clearTimeout(this.hideFinishTimer);
+    this.hideFinishTimer = setTimeout(() => {
+      this.hideFinishTimer = null;
+      if (this.win && !this.win.isDestroyed()) {
+        this.win.hide();
+        this.sendOpacity(1, 0);
+      }
+      this.visible = false;
+    }, 170);
+    if (this.hideFinishTimer.unref) this.hideFinishTimer.unref();
   }
 
   toggle(instanceId) {
@@ -159,9 +208,12 @@ class CalendarWindow {
 
   destroy() {
     clearTimeout(this.hideTimer);
+    clearTimeout(this.hideFinishTimer);
     if (this.win && !this.win.isDestroyed()) this.win.destroy();
     this.win = null;
+    this.visible = false;
   }
 }
 
 module.exports = { CalendarWindow };
+

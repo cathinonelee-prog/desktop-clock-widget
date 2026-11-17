@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('clockCalendar', {
   getClock: () => ipcRenderer.invoke('clock:state'),
   setConfig: (patch) => ipcRenderer.invoke('config:set', patch),
   resize: (size) => ipcRenderer.send('calendar:size', size),
+  panelRect: (rect) => ipcRenderer.send('calendar:panel-rect', rect),
   pointerEnter: () => ipcRenderer.send('calendar:enter'),
   pointerLeave: () => ipcRenderer.send('calendar:leave'),
   close: () => ipcRenderer.send('calendar:close'),
@@ -19,5 +20,8 @@ contextBridge.exposeInMainWorld('clockCalendar', {
     const handler = (_e, state) => cb(state);
     ipcRenderer.on('clock:state', handler);
     return () => ipcRenderer.removeListener('clock:state', handler);
+  },
+  onOpacity: (cb) => {
+    ipcRenderer.on('calendar:opacity', (_e, payload) => cb(payload));
   },
 });

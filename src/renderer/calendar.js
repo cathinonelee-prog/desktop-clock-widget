@@ -209,6 +209,7 @@ async function render() {
   const measure = () => {
     const rect = panel.getBoundingClientRect();
     const style = getComputedStyle(document.body);
+    api.panelRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
     const width = Math.ceil(rect.width + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)) + 4;
     const height = Math.ceil(rect.height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)) + 4;
     api.resize({ width, height });
@@ -238,6 +239,13 @@ document.getElementById('cal-close').addEventListener('click', () => api.close()
 document.body.addEventListener('pointerenter', () => api.pointerEnter());
 document.body.addEventListener('pointerleave', () => api.pointerLeave());
 
+// 淡入淡出：主进程控制时机，这里只做 CSS 过渡（透明窗口上 setOpacity 无效）
+panel.style.opacity = '0';
+api.onOpacity(({ value, duration }) => {
+  panel.style.transition = duration ? `opacity ${duration}ms ease` : 'none';
+  panel.style.opacity = String(value);
+});
+
 api.onConfig((payload) => {
   if (!payload?.config) return;
   config = payload.config;
@@ -256,3 +264,5 @@ api.onClock((state) => {
 });
 
 render();
+
+

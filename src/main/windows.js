@@ -65,6 +65,7 @@ class WindowManager {
     this.layout = new LayoutStore(path.join(userDataDir, 'layout.json'));
     this.windows = new Map(); // instanceId -> BrowserWindow
     this.ready = new Set();
+    this.panelRects = new Map(); // instanceId -> 可见面板相对窗口的矩形
     this.autoSize = new Map(); // instanceId -> {width, height}
     this.hiddenAll = false;
     this.applying = false;
@@ -218,6 +219,21 @@ class WindowManager {
 
   windowFor(instanceId) {
     return this.windows.get(instanceId) || null;
+  }
+
+  /** 记录可见面板相对窗口的位置（窗口四周有透明留白，悬浮命中要用面板矩形） */
+  setPanelRect(instanceId, rect) {
+    if (!instanceId || !rect) return;
+    this.panelRects.set(instanceId, {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    });
+  }
+
+  panelRectFor(instanceId) {
+    return this.panelRects.get(instanceId) || null;
   }
 
   /** 根据配置增删窗口 */
