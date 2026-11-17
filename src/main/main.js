@@ -68,6 +68,8 @@ let quitting = false;
 let updater = null;
 let updateTimer = null;
 let failedHotkeys = [];
+let lastFailedHotkeyKey = '';
+let registeredHotkeySignature = '';
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -331,8 +333,13 @@ function openSettings(tab) {
 }
 
 function registerShortcuts() {
-  globalShortcut.unregisterAll();
   const cfg = config.get();
+  const signature = `${cfg.hotkeys.toggle}|${cfg.hotkeys.sync}`;
+  // 快捷键没变就别反复注销/注册，否则每次改配置都会重新触发一次“注册失败”通知
+  if (signature === registeredHotkeySignature) return;
+  registeredHotkeySignature = signature;
+
+  globalShortcut.unregisterAll();
   const failed = [];
   const register = (accelerator, handler) => {
     if (!accelerator) return;
@@ -346,11 +353,16 @@ function registerShortcuts() {
   register(cfg.hotkeys.toggle, () => windowManager?.toggleAll());
   register(cfg.hotkeys.sync, () => clock?.sync());
 
-  if (failed.length) {
-    log(`hotkeys register failed: ${failed.join(', ')}`);
-    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('hotkeys:failed', failed);
-  }
+  const failedKey = failed.join('|');
+  const changed = failedKey !== lastFailedHotkeyKey;
   failedHotkeys = failed;
+  lastFailedHotkeyKey = failedKey;
+
+  if (failed.length) log(`hotkeys register failed: ${failed.join(', ')}`);
+  // 只在失败列表发生变化时通知界面，避免任何配置改动都弹一次提示
+  if (changed && settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.webContents.send('hotkeys:failed', failed);
+  }
 }
 
 function quitApp() {
@@ -432,8 +444,7 @@ function registerIpc() {
   });
 
   // —— 版本更新 ——
-  ipcMain.handle('update:state', () => updater?.state() ?? null);
-  ipcMain.handle('update:check', async () => (updater ? updater.check({ force: true }) : null));
+  ipcMain.handle('update:state', () => updater?.state() ?? null);  ipcMain.handle('update:check', async () => (updater ? updater.check({ force: true }) : null));
   ipcMain.handle('update:download', async () => (updater ? updater.download() : null));
   ipcMain.handle('update:apply', async () => {
     if (!updater) return { ok: false, error: '更新器未初始化' };
@@ -449,6 +460,7 @@ function registerIpc() {
     }
     return result;
   });
+  ipcMain.handle('hotkeys:state', () => failedHotkeys.slice());
 
   ipcMain.on('widget:size', (event, size) => {
     const win = BrowserWindow.fromWebContents(event.sender);

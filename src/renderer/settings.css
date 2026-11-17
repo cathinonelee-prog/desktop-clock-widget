@@ -1005,6 +1005,17 @@ input[type='checkbox'] {
   cursor: default;
 }
 
+.hotkey-conflict {
+  margin: -6px 0 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fca5a5;
+}
+
+.hotkey-conflict::before {
+  content: '⚠ ';
+}
+
 /* —— 关于 —— */
 .inline-actions {
   display: flex;

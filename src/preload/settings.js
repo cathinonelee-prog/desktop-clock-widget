@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('clockSettings', {
   onHotkeyFailed: (cb) => {
     ipcRenderer.on('hotkeys:failed', (_e, list) => cb(list));
   },
+  hotkeyState: () => ipcRenderer.invoke('hotkeys:state'),
   close: () => ipcRenderer.send('settings:close'),
   minimize: () => ipcRenderer.send('settings:minimize'),
   onConfig: (cb) => {

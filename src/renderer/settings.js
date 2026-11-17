@@ -885,8 +885,16 @@ function setupHotkeyField(name) {
   const commit = (value) => {
     patchConfig({ hotkeys: { [name]: value } }, { immediate: true });
     config = { ...config, hotkeys: { ...config.hotkeys, [name]: value } };
-    failedHotkeys = failedHotkeys.filter((item) => item !== value);
     stop();
+    // 注册结果由主进程决定，写完配置后回读一次真实状态
+    api
+      .hotkeyState?.()
+      .then((list) => {
+        failedHotkeys = Array.isArray(list) ? list : [];
+        for (const renderHotkey of hotkeyRenders) renderHotkey();
+        renderHotkeyConflict();
+      })
+      .catch(() => {});
   };
 
   display.addEventListener('click', () => {
@@ -943,12 +951,23 @@ function setupHotkeyField(name) {
 setupHotkeyField('toggle');
 setupHotkeyField('sync');
 
+/** 快捷键冲突只在「窗口层级」页内联提示，不用全局 toast */
+function renderHotkeyConflict() {
+  const el = document.getElementById('hotkey-conflict');
+  if (!el) return;
+  const values = ['toggle', 'sync'].map((name) => hotkeyValue(name)).filter(Boolean);
+  const conflicts = failedHotkeys.filter((item) => values.includes(item));
+  el.hidden = !conflicts.length;
+  el.textContent = conflicts.length ? `以下快捷键被其他程序占用，建议重新录制：${conflicts.join('、')}` : '';
+}
+
 api.onHotkeyFailed?.((list) => {
-  if (!Array.isArray(list) || !list.length) return;
-  failedHotkeys = list.slice();
+  failedHotkeys = Array.isArray(list) ? list.slice() : [];
   for (const renderHotkey of hotkeyRenders) renderHotkey();
-  toast(`快捷键 ${list.join('、')} 注册失败，可能被其他程序占用，请重新录制`, true);
+  renderHotkeyConflict();
 });
+
+renderHotkeyConflict();
 
 /* ---------------- 关于 ---------------- */
 
@@ -1100,6 +1119,7 @@ function syncAll() {
   }
   syncSwatches();
   for (const renderHotkey of hotkeyRenders) renderHotkey();
+  renderHotkeyConflict();
   syncTimeZoneUI();
   syncText();
   renderInstances();
