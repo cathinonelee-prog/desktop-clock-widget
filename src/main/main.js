@@ -11,6 +11,7 @@ const {
   globalShortcut,
   shell,
   protocol,
+  Notification,
 } = require('electron');
 const os = require('node:os');
 const path = require('node:path');
@@ -68,6 +69,7 @@ let config = null;
 let quitting = false;
 let updater = null;
 let updateTimer = null;
+let availableUpdate = null;
 let failedHotkeys = [];
 let lastFailedHotkeyKey = '';
 let registeredHotkeySignature = '';
@@ -252,6 +254,12 @@ function rebuildTrayMenu() {
   };
   tray.setContextMenu(
     Menu.buildFromTemplate([
+      ...(availableUpdate
+        ? [
+            { label: `发现新版本 v${availableUpdate}，点击更新`, click: () => openSettings('about') },
+            { type: 'separator' },
+          ]
+        : []),
       { label: windowManager?.hiddenAll ? '显示所有时钟' : '隐藏所有时钟', click: () => windowManager?.toggleAll() },
       { label: `添加时钟窗口（共 ${cfg.instances.length} 个）`, click: () => addInstance('auto') },
       { type: 'separator' },
@@ -313,8 +321,24 @@ function createTray() {
   tray.on('click', () => openSettings());
 }
 
-function openSettings(tab) {
-  if (settingsWin && !settingsWin.isDestroyed()) {
+/** 发现新版本时主动提示（系统通知 + 托盘菜单项），点击直达「关于」页的更新卡片 */
+function notifyUpdate(version) {
+  log(`update available: v${version}`);
+  try {
+    if (!Notification.isSupported()) return;
+    const toast = new Notification({
+      title: '悬浮时钟有新版本',
+      body: `v${version} 已发布，点击打开设置即可一键更新`,
+      silent: true,
+    });
+    toast.on('click', () => openSettings('about'));
+    toast.show();
+  } catch {
+    /* 系统通知不可用时静默，托盘菜单里仍会显示 */
+  }
+}
+
+function openSettings(tab) {  if (settingsWin && !settingsWin.isDestroyed()) {
     if (settingsWin.isMinimized()) settingsWin.restore();
     settingsWin.show();
     settingsWin.focus();
@@ -689,7 +713,25 @@ app.whenReady().then(() => {
   // —— 版本更新：启动 8 秒后检查一次，之后每 6 小时一次 ——
   updater = new Updater({ app, currentVersion: app.getVersion(), config });
   updater.on('state', (state) => {
+    if (state?.status && state.status !== 'checking' && state.status !== 'downloading') {
+      log(`update state ${state.status} latest=${state.latestVersion || '-'} error=${state.error || '-'}`);
+    }
     if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('update:state', state);
+    if (state?.status === 'available' && state.latestVersion) {
+      availableUpdate = state.latestVersion;
+      rebuildTrayMenu();
+      // 每个版本只主动提示一次，避免每次启动都弹
+      const notified = config.get().update.lastNotified;
+      if (notified !== state.latestVersion) {
+        config.update({ update: { lastNotified: state.latestVersion } });
+        notifyUpdate(state.latestVersion);
+      }
+    } else if (state?.status === 'latest' || state?.status === 'idle') {
+      if (availableUpdate) {
+        availableUpdate = null;
+        rebuildTrayMenu();
+      }
+    }
   });
   const scheduleUpdateCheck = () => {
     clearInterval(updateTimer);

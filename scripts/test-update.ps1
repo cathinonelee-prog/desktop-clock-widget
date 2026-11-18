@@ -48,7 +48,11 @@ $zip = Join-Path $web 'app.zip'
 Compress-Archive -Path "$newPkg\*" -DestinationPath $zip -CompressionLevel Optimal
 $size = (Get-Item $zip).Length
 $zipUrl = "http://127.0.0.1:$port/app.zip"
-@{ tag_name = 'v1.1.1'; body = "## 本地测试发布`n- 这是一次模拟升级"; published_at = '2026-11-13T08:00:00Z'
+# 假版本号从当前 package.json 递增，避免写死导致「已是最新」而测不到升级
+$currentVersion = (Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version
+$parts = $currentVersion.Split('.')
+$fakeVersion = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
+@{ tag_name = "v$fakeVersion"; body = "## 本地测试发布`n- 这是一次模拟升级"; published_at = '2026-11-13T08:00:00Z'
    assets = @(@{ name = 'DesktopClock-win32-x64.zip'; size = $size; browser_download_url = $zipUrl }) } |
   ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $web 'latest.json')
 Write-Host "   zip: $([math]::Round($size/1mb,1)) MB"

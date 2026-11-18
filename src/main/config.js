@@ -62,6 +62,7 @@ const DEFAULT_CONFIG = {
   update: {
     autoCheck: true,
     feed: '', // 留空 = 使用内置的 GitHub Releases 地址；仅测试时覆盖
+    lastNotified: '', // 已提示过的版本，避免每次启动都弹通知
   },
   calendar: {
     enabled: true,
@@ -232,6 +233,7 @@ function sanitize(input) {
 
   cfg.update.autoCheck = Boolean(cfg.update.autoCheck);
   cfg.update.feed = /^https?:\/\//i.test(String(cfg.update.feed || '')) ? String(cfg.update.feed) : '';
+  cfg.update.lastNotified = typeof cfg.update.lastNotified === 'string' ? cfg.update.lastNotified : '';
 
   cfg.calendar.enabled = Boolean(cfg.calendar.enabled);
   cfg.calendar.trigger = ['none', 'click', 'dblclick', 'hover'].includes(cfg.calendar.trigger) ? cfg.calendar.trigger : 'click';
