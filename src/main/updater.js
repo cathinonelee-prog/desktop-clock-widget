@@ -12,6 +12,34 @@ const { pipeline } = require('node:stream/promises');
 const DEFAULT_FEED = 'https://api.github.com/repos/cathinonelee-prog/desktop-clock-widget/releases/latest';
 const OWNER_REPO = { owner: 'cathinonelee-prog', repo: 'desktop-clock-widget' };
 
+/**
+ * 优先用 Electron 的 net.fetch：它走 Chromium 网络栈，会自动使用系统代理和系统证书，
+ * 而 Node 自带的 fetch 不读系统代理，在需要代理的网络里会直接 fetch failed。
+ */
+function fetchImpl(url, options) {
+  try {
+    const { net } = require('electron');
+    if (net && typeof net.fetch === 'function') return net.fetch(url, options);
+  } catch {
+    /* 非 Electron 环境（测试）回退到 Node fetch */
+  }
+  return globalThis.fetch(url, options);
+}
+
+/** 把底层网络错误翻译成人能看懂的提示 */
+function describeNetworkError(err, action) {
+  const message = String(err?.message || err || '');
+  if (err?.name === 'AbortError') return `${action}超时`;
+  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(message)) return `${action}失败：无法解析 GitHub 域名，请检查网络或代理`;
+  if (/ECONNREFUSED|ECONNRESET|ETIMEDOUT|socket hang up|network error/i.test(message)) {
+    return `${action}失败：连接 GitHub 超时，可能需要开启系统代理`;
+  }
+  if (/CERT_|certificate|self.signed|UNABLE_TO_VERIFY/i.test(message)) {
+    return `${action}失败：证书校验不通过，可能被公司网络拦截`;
+  }
+  return `${action}失败：${message || '未知网络错误'}`;
+}
+
 function parseVersion(value) {
   const text = String(value || '').trim().replace(/^v/i, '');
   const [main] = text.split(/[-+]/);
@@ -94,7 +122,7 @@ class Updater extends EventEmitter {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15_000);
-      const res = await fetch(this.feed(), {
+      const res = await fetchImpl(this.feed(), {
         headers: {
           accept: 'application/vnd.github+json',
           'user-agent': `DesktopClock/${this.currentVersion}`,
@@ -127,7 +155,7 @@ class Updater extends EventEmitter {
       }
     } catch (err) {
       this.status = 'error';
-      this.error = err.name === 'AbortError' ? '检查更新超时' : err.message;
+      this.error = describeNetworkError(err, '检查更新');
     } finally {
       this.busy = false;
       this.#emit();
@@ -152,7 +180,7 @@ class Updater extends EventEmitter {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-      const res = await fetch(this.assetUrl, {
+      const res = await fetchImpl(this.assetUrl, {
         redirect: 'follow',
         headers: { 'user-agent': `DesktopClock/${this.currentVersion}` },
         signal: controller.signal,
@@ -189,7 +217,7 @@ class Updater extends EventEmitter {
       this.status = 'ready';
     } catch (err) {
       this.status = 'error';
-      this.error = err.name === 'AbortError' ? '下载超时' : err.message;
+      this.error = describeNetworkError(err, '下载');
       await fsp.rm(this.zipPath, { force: true }).catch(() => {});
     } finally {
       this.busy = false;
@@ -344,3 +372,4 @@ catch {
 }
 
 module.exports = { Updater, DEFAULT_FEED, OWNER_REPO, parseVersion, isNewer };
+
