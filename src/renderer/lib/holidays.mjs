@@ -2,7 +2,8 @@
 
 const BASE = 'app://clock/data/holidays';
 
-const yearCache = new Map();
+const yearCache = new Map(); // 已解析的数据
+const inflight = new Map(); // 正在加载的 Promise
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -14,6 +15,7 @@ export function ymdKey(y, m, d) {
 
 async function loadYear(year) {
   if (yearCache.has(year)) return yearCache.get(year);
+  if (inflight.has(year)) return inflight.get(year);
   const promise = (async () => {
     try {
       const res = await fetch(`${BASE}/${year}.json`, { cache: 'no-cache' });
@@ -23,8 +25,15 @@ async function loadYear(year) {
       return null;
     }
   })();
-  yearCache.set(year, promise);
-  return promise;
+  inflight.set(year, promise);
+  try {
+    const data = await promise;
+    // 只缓存解析后的数据；缓存 Promise 会让 info() 的同步查询永远拿不到结果
+    if (data) yearCache.set(year, data);
+    return data;
+  } finally {
+    inflight.delete(year);
+  }
 }
 
 function parseEntry(value) {
@@ -47,8 +56,7 @@ export class HolidayDb {
   }
 
   cached(year) {
-    const v = yearCache.get(year);
-    return v && typeof v.then === 'function' ? null : v;
+    return yearCache.get(year) || null;
   }
 
   /**
